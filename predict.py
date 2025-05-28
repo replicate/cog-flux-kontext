@@ -89,16 +89,19 @@ class FluxDevKontextPredictor(BasePredictor):
 
     def handle_lora(self, lora_weights: Path, lora_strength: float):
         if not lora_weights:
-            unload_loras(self.model)
-            self.cur_lora = None
-            self.cur_strength = -10
+            if self.cur_lora is not None:
+                unload_loras(self.model)
+                self.cur_lora = None
+                self.cur_strength = -10
             return
+        
         lora_weights = str(lora_weights)
         lora_weights = self.cache.ensure(lora_weights)
         if lora_weights == self.cur_lora and lora_strength == self.cur_strength:
             print("Lora already loaded")
             return
-        self.cur_lora = "loading..."
+        
+        unload_loras(self.model)
         if lora_weights is not None:
             load_lora(self.model, lora_weights, lora_strength, store_clones=True)
             self.cur_lora = lora_weights
