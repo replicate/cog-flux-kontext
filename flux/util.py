@@ -1,6 +1,9 @@
 import math
 import os
 from dataclasses import dataclass
+from pathlib import Path
+import subprocess
+import time
 
 import torch
 from einops import rearrange
@@ -13,6 +16,10 @@ from flux.model import Flux, FluxLoraWrapper, FluxParams
 from flux.modules.autoencoder import AutoEncoder, AutoEncoderParams
 from flux.modules.conditioner import HFEmbedder
 
+T5_URL = "https://weights.replicate.delivery/default/official-models/flux/t5/t5-v1_1-xxl.tar"
+T5_CACHE = "./models/t5"
+CLIP_URL = "https://weights.replicate.delivery/default/official-models/flux/clip/clip-vit-large-patch14.tar"
+CLIP_CACHE = "./models/clip"
 
 def save_image(
     nsfw_classifier,
@@ -386,11 +393,17 @@ def load_flow_model(
 
 def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    if not os.path.exists(T5_CACHE):
+        download_weights(T5_URL, T5_CACHE)
+    device = torch.device(device)
+    return HFEmbedder(T5_CACHE, max_length=max_length, torch_dtype=torch.bfloat16).to(device)
 
 
 def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
-    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.bfloat16).to(device)
+    if not os.path.exists(CLIP_CACHE):
+        download_weights(CLIP_URL, CLIP_CACHE)
+    device = torch.device(device)
+    return HFEmbedder(CLIP_CACHE, max_length=77, is_clip=True, torch_dtype=torch.bfloat16).to(device)
 
 
 def load_ae(name: str, device: str | torch.device = "cuda", hf_download: bool = True) -> AutoEncoder:
@@ -469,6 +482,18 @@ class WatermarkEmbedder:
             image = image[0]
         image = 2 * image - 1
         return image
+
+
+def download_weights(url: str, dest: Path):
+    start = time.time()
+    print("downloading url: ", url)
+    print("downloading to: ", dest)
+    if url.endswith("tar"):
+        subprocess.check_call(["pget", "--log-level=WARNING", "-x", url, dest], close_fds=False)
+    else:
+        subprocess.check_call(["pget", "--log-level=WARNING", url, dest], close_fds=False)
+    print("downloading took: ", time.time() - start)
+
 
 
 # A fixed 48-bit message that was chosen at random
