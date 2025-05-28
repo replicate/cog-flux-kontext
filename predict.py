@@ -1,4 +1,5 @@
 import os
+from lora import load_lora, unload_loras
 import torch
 from PIL import Image
 from cog import BasePredictor, Path, Input
@@ -14,18 +15,18 @@ from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
 from util import print_timing
-from weights import download_weights
+from weights import WeightsDownloadCache, download_weights_pget
 
 # Environment setup
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch-inductor-cache-kontext"
 
 # Kontext model configuration
 KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/pre-release/preliminary-dev-kontext.sft"
-KONTEXT_WEIGHTS_PATH = "/models/kontext/preliminary-dev-kontext.sft"
+KONTEXT_WEIGHTS_PATH = "./models/kontext/preliminary-dev-kontext.sft"
 
 # Model weights URLs
 AE_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/safetensors/ae.safetensors"
-AE_WEIGHTS_PATH = "/models/flux-dev/ae.safetensors"
+AE_WEIGHTS_PATH = "./models/flux-dev/ae.safetensors"
 
 ASPECT_RATIOS = {
     "1:1": (1024, 1024),
@@ -61,6 +62,8 @@ class FluxDevKontextPredictor(BasePredictor):
         self.model = load_kontext_model(device=self.device)
         self.ae = load_ae_local(device=self.device)
 
+        self.cur_lora = None
+        self.cur_strength = -10
         # Compile models for faster execution
         # print("Compiling models with torch.compile...")
         # self.model = torch.compile(self.model, mode="max-autotune")
@@ -68,6 +71,7 @@ class FluxDevKontextPredictor(BasePredictor):
 
         # Initialize safety checker
         self.safety_checker = SafetyChecker()
+        self.cache = WeightsDownloadCache()
 
         print("FluxDevKontextPredictor setup complete")
 
@@ -82,6 +86,24 @@ class FluxDevKontextPredictor(BasePredictor):
         if megapixels == "0.25":
             width, height = width // 2, height // 2
         return (width, height)
+
+    def handle_lora(self, lora_weights: Path, lora_strength: float):
+        if not lora_weights:
+            unload_loras(self.model)
+            self.cur_lora = None
+            self.cur_strength = -10
+            return
+        lora_weights = str(lora_weights)
+        lora_weights = self.cache.ensure(lora_weights)
+        if lora_weights == self.cur_lora and lora_strength == self.cur_strength:
+            print("Lora already loaded")
+            return
+        self.cur_lora = "loading..."
+        if lora_weights is not None:
+            load_lora(self.model, lora_weights, lora_strength, store_clones=True)
+            self.cur_lora = lora_weights
+            self.cur_strength = lora_strength
+        return
 
     def predict(
         self,
@@ -125,10 +147,20 @@ class FluxDevKontextPredictor(BasePredictor):
         disable_safety_checker: bool = Input(
             description="Disable NSFW safety checker", default=False
         ),
+        lora_weights: str = Input(
+            description="Path to the lora weights", default=None
+        ),
+        lora_strength: float = Input(
+            description="Strength of the lora", default=1.0
+        ),
     ) -> Path:
         """
         Generate an image based on the text prompt and conditioning image using FLUX.1 Kontext
         """
+
+        # handle loras 
+        self.handle_lora(lora_weights, lora_strength)
+
         with torch.inference_mode(), print_timing("generate image"):
             seed = prepare_seed(seed)
 
@@ -207,7 +239,7 @@ def download_model_weights():
     # Download kontext weights
     if not os.path.exists(KONTEXT_WEIGHTS_PATH):
         print("Kontext weights not found, downloading...")
-        download_weights(KONTEXT_WEIGHTS_URL, Path(KONTEXT_WEIGHTS_PATH))
+        download_weights_pget(KONTEXT_WEIGHTS_URL, Path(KONTEXT_WEIGHTS_PATH))
         print("Kontext weights downloaded successfully")
     else:
         print("Kontext weights already exist")
@@ -215,7 +247,7 @@ def download_model_weights():
     # Download autoencoder weights
     if not os.path.exists(AE_WEIGHTS_PATH):
         print("Autoencoder weights not found, downloading...")
-        download_weights(AE_WEIGHTS_URL, Path(AE_WEIGHTS_PATH))
+        download_weights_pget(AE_WEIGHTS_URL, Path(AE_WEIGHTS_PATH))
         print("Autoencoder weights downloaded successfully")
     else:
         print("Autoencoder weights already exist")
