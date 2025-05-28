@@ -11,7 +11,7 @@ from transformers import (
 )
 from cog import Path
 
-from weights import download_weights
+from weights import download_weights_pget
 from util import print_timing
 
 
@@ -31,7 +31,7 @@ class SafetyChecker:
     def __init__(self):
         with print_timing("Loading SDXL safety checker"):
             if not SAFETY_CACHE.exists():
-                download_weights(SAFETY_URL, SAFETY_CACHE)
+                download_weights_pget(SAFETY_URL, SAFETY_CACHE)
             self.sdxl_safety_checker = StableDiffusionSafetyChecker.from_pretrained(
                 SAFETY_CACHE, torch_dtype=torch.float16
             ).to("cuda")  # type: ignore
@@ -41,7 +41,7 @@ class SafetyChecker:
 
         with print_timing("Loading Falcon safety checker"):
             if not FALCON_MODEL_CACHE.exists():
-                download_weights(FALCON_MODEL_URL, FALCON_MODEL_CACHE)
+                download_weights_pget(FALCON_MODEL_URL, FALCON_MODEL_CACHE)
             self.falcon_model = AutoModelForImageClassification.from_pretrained(
                 FALCON_MODEL_NAME,
                 cache_dir=FALCON_MODEL_CACHE,
