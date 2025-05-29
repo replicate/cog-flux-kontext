@@ -2,6 +2,13 @@ import torch
 from einops import rearrange
 from torch import Tensor
 
+from sageattention.core import sageattn_qk_int8_pv_fp8_cuda_sm90
+
+def quantized_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
+    q, k = apply_rope(q, k, pe)
+    x = sageattn_qk_int8_pv_fp8_cuda_sm90(q, k, v, is_causal=False)
+    x = rearrange(x, "B H L D -> B L (H D)")
+    return x
 
 def attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
     q, k = apply_rope(q, k, pe)

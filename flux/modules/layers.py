@@ -5,7 +5,8 @@ import torch
 from einops import rearrange
 from torch import Tensor, nn
 
-from flux.math import attention, rope
+from flux.math import rope
+from flux.math import quantized_attention as attention
 
 
 class EmbedND(nn.Module):
