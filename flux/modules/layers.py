@@ -8,7 +8,6 @@ from torch import Tensor, nn
 from flux.math import rope
 from flux.math import quantized_attention as attention
 
-
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super().__init__()

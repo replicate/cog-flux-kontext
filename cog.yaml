@@ -4,35 +4,30 @@
 build:
   # set to true if your model requires a GPU
   gpu: true
-  cuda: "12.4"
+  cuda: "12.6"
 
   python_version: "3.11"
 
-  system_packages:
-    - "libgl1-mesa-glx"
-    - "libglib2.0-0"
-
   python_packages:
-    - "numpy<2"
-    - "torch==2.5.1"
-    - "einops==0.8.0"
-    - "fire==0.6.0"
-    - "huggingface-hub==0.24.3"
-    - "safetensors==0.4.3"
-    - "sentencepiece==0.2.0"
-    - "transformers==4.43.3"
-    - "tokenizers==0.19.1"
-    - "protobuf==5.27.2"
-    - "diffusers==0.29.2"
-    - "loguru==0.7.2"
-    - "pybase64==1.4.0"
-    - "pydash==8.0.3"
-    - "opencv-python-headless==4.10.0.84"
+    - "numpy"
+    - "torch==2.7.0"
+    - "torchao"
+    - "einops"
+    - "fire"
+    - "huggingface-hub"
+    - "safetensors"
+    - "sentencepiece"
+    - "transformers"
+    - "tokenizers"
+    - "protobuf"
+    - "diffusers"
+    - "loguru"
+    - "pybase64"
+    - "pydash"
     - "Pillow"
-    - "invisible-watermark==0.2.0"
 
-
-  # commands run after the environment is setup
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
+    - pip install git+https://github.com/alexarmbr/SageAttention.git@container-build # modified setup.py that builds for sm90 in a container
+        
 predict: "predict.py:FluxDevKontextPredictor"

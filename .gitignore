@@ -1,0 +1,8 @@
+**/__pycache__/
+.cog/
+.devcontainer/
+falcon-cache/
+safety-cache/
+*.png
+*.jpg
+*.jpeg

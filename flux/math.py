@@ -10,12 +10,22 @@ def quantized_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
     x = rearrange(x, "B H L D -> B L (H D)")
     return x
 
+from torch.nn.attention import sdpa_kernel, SDPBackend
+
+def cudnn_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
+    q, k = apply_rope(q, k, pe)
+    q = q.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
+    with sdpa_kernel(SDPBackend.CUDNN_ATTENTION): 
+        x = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+    x = rearrange(x, "B H L D -> B L (H D)")
+    return x
+
 def attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
     q, k = apply_rope(q, k, pe)
-
     x = torch.nn.functional.scaled_dot_product_attention(q, k, v)
     x = rearrange(x, "B H L D -> B L (H D)")
-
     return x
 
 

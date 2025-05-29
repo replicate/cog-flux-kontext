@@ -7,18 +7,19 @@ from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
 from flux.util import (
     configs,
     load_clip,
-    load_t5,
+    load_t5
 )
 from flux.model import Flux
 from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
-from util import print_timing
+from util import print_timing, warm_up_model
 from weights import download_weights
 
 from torchao.quantization import quantize_, Float8DynamicActivationFloat8WeightConfig
 from torchao.quantization.granularity import PerTensor, PerRow
 
+torch._dynamo.config.recompile_limit = 40
 
 FP8_QUANTIZATION = True
 # Kontext model configuration
@@ -54,6 +55,13 @@ ASPECT_RATIOS = {
     "match_input_image": (None, None),
 }
 
+def quantize_filter_fn(m, name):
+    if isinstance(m, torch.nn.Linear) and "single_blocks" in name and ("linear1" in name or "linear2" in name):
+        return True
+    else:
+        return False
+
+
 class FluxDevKontextPredictor(BasePredictor):
     """
     Flux.1 Kontext Predictor - Image-to-image transformation model using FLUX.1-dev architecture
@@ -82,13 +90,14 @@ class FluxDevKontextPredictor(BasePredictor):
 
         
         if FP8_QUANTIZATION:
-            quantize_(self.model, Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor()))
+            quantize_(self.model, Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor()), filter_fn=quantize_filter_fn)
         self.model = torch.compile(self.model, dynamic=False)
 
-        # first inference request to model will take about 20s because of torch compile warmup
-        # (would be longer if it weren't for the cache)
-        # we could move this to setup by running the model over all possible aspect ratios here
-        # for now we just allow the first prediction to be slow
+        for (h,w) in ASPECT_RATIOS.values():
+            if (h,w) == (None, None):
+                continue
+            with print_timing(f"warm up model for aspect ratio {h}x{w}"):
+                warm_up_model(h, w, self.model)
 
         # Initialize safety checker
         self.safety_checker = SafetyChecker()

@@ -226,9 +226,11 @@ def prepare_kontext(
 
     img_cond = Image.open(img_cond_path).convert("RGB")
     width, height = img_cond.size
+    
     aspect_ratio = width / height
     # Kontext is trained on specific resolutions, using one of them is recommended
     _, width, height = min((abs(aspect_ratio - w / h), w, h) for w, h in PREFERED_KONTEXT_RESOLUTIONS)
+    print(f"closest supported width {width} and height {height}")
     width = 2 * int(width / 16)
     height = 2 * int(height / 16)
 
