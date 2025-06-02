@@ -1,4 +1,5 @@
 import os
+from typing import List
 from lora import load_lora, unload_loras
 import torch
 from PIL import Image
@@ -113,8 +114,13 @@ class FluxDevKontextPredictor(BasePredictor):
         prompt: str = Input(
             description="Text description of what you want to generate, or the instruction on how to edit the given image.",
         ),
-        input_image: Path = Input(
+        input_images: List[Path] = Input(
             description="Image to use as reference. Must be jpeg, png, gif, or webp.",
+        ),
+        multi_image_mode: str = Input(
+            description="How to handle multiple input images. 'concat' will concatenate the images into one large image, 'separate' will treat each image as a separate prompt.",
+            choices=["concat", "separate"],
+            default="concat",
         ),
         aspect_ratio: str = Input(
             description="Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image.",
@@ -173,6 +179,17 @@ class FluxDevKontextPredictor(BasePredictor):
             )
             print(f"Target dimensions: {target_width}x{target_height}")
 
+            if multi_image_mode == "concat":
+                # open all images with PIL and concatenate them horizontally. resize so images are the same height; downscale but don't upscale
+                images = [Image.open(input_image) for input_image in input_images]
+                max_height = max([image.height for image in images])
+                images = [image.resize((int(image.width * max_height / image.height), max_height)) for image in images]
+                output_image = Image.new("RGB", (sum([image.width for image in images]), max_height))
+                for i, image in enumerate(images):
+                    output_image.paste(image, (sum([image.width for image in images[:i]]), 0))
+                output_image.save("concat_image.png")
+                input_images = ["concat_image.png"]
+
             # Prepare input for kontext sampling
             with print_timing("prepare input"):
                 inp, final_height, final_width = prepare_kontext(
@@ -180,7 +197,7 @@ class FluxDevKontextPredictor(BasePredictor):
                     clip=self.clip,
                     prompt=prompt,
                     ae=self.ae,
-                    img_cond_path=str(input_image),
+                    img_cond_path=[str(input_image) for input_image in input_images],
                     target_width=target_width,
                     target_height=target_height,
                     bs=1,
