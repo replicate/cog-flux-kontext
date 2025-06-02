@@ -43,14 +43,13 @@ def get_sequence_length(w, h):
     txt_seq_len = 512
     return image_seq_len, txt_seq_len
 
-def warm_up_model(h, w, model):
+def warm_up_model(h, w, model, device):
     in_channels = model.params.in_channels
     assert in_channels == 64
     context_in_dim = model.params.context_in_dim
     batch_size = 1
     image_id_dim = 3
     image_seq_len, txt_seq_len = get_sequence_length(w, h)
-    device = torch.device("cuda")
 
     img_input = torch.rand(batch_size, image_seq_len, in_channels, device=device, dtype=torch.bfloat16)
     img_input_ids = torch.rand(batch_size, image_seq_len, image_id_dim, device=device, dtype=torch.float32) * 73.0

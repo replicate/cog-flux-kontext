@@ -11,8 +11,8 @@ from .model import Flux
 from .modules.autoencoder import AutoEncoder
 from .modules.conditioner import HFEmbedder
 from .modules.image_embedders import CannyImageEncoder, DepthImageEncoder, ReduxImageEncoder
-from .util import PREFERED_KONTEXT_RESOLUTIONS
-
+from .util import ASPECT_RATIOS
+import torch.distributed as dist
 
 def get_noise(
     num_samples: int,
@@ -216,25 +216,36 @@ def prepare_kontext(
     img_cond_path: str,
     seed: int,
     device: torch.device,
-    target_width: int | None = None,
-    target_height: int | None = None,
+    target_height_width: tuple[int, int] | None = None,
     bs: int = 1,
 ) -> tuple[dict[str, Tensor], int, int]:
-    # load and encode the conditioning image
+    """
+    - find supported aspect ratio that is closest to conditioning image
+    - resize conditioning image to this aspect ratio
+    - encode conditioning image
+    - if target_width and target_height are None, 
+        generate noise that matches conditioning image dims in the latent space
+      if target_width and target_height are not None,
+        generate noise that corresponds to an image of target height, target width
+    """
     if bs == 1 and not isinstance(prompt, str):
         bs = len(prompt)
 
     img_cond = Image.open(img_cond_path).convert("RGB")
-    width, height = img_cond.size
+    
+    # if target width/height are not passed, use the image dimensions
+    if target_height_width is None:
+        width, height = img_cond.size
+    else:
+        width, height = target_height_width
     
     aspect_ratio = width / height
-    # Kontext is trained on specific resolutions, using one of them is recommended
-    _, width, height = min((abs(aspect_ratio - w / h), w, h) for w, h in PREFERED_KONTEXT_RESOLUTIONS)
+    _, width, height = min((abs(aspect_ratio - w / h), w, h) for h, w in ASPECT_RATIOS.values())
     print(f"closest supported width {width} and height {height}")
-    width = 2 * int(width / 16)
-    height = 2 * int(height / 16)
+    width = 16 * (width // 16)
+    height = 16 * (height // 16)
 
-    img_cond = img_cond.resize((8 * width, 8 * height), Image.Resampling.LANCZOS)
+    img_cond = img_cond.resize((width, height), Image.Resampling.LANCZOS)
     img_cond = np.array(img_cond)
     img_cond = torch.from_numpy(img_cond).float() / 127.5 - 1.0
     img_cond = rearrange(img_cond, "h w c -> 1 c h w")
@@ -250,21 +261,16 @@ def prepare_kontext(
 
     # image ids are the same as base image with the first dimension set to 1
     # instead of 0
-    img_cond_ids = torch.zeros(height // 2, width // 2, 3)
+    img_cond_ids = torch.zeros(height // 16, width // 16, 3)
     img_cond_ids[..., 0] = 1
-    img_cond_ids[..., 1] = img_cond_ids[..., 1] + torch.arange(height // 2)[:, None]
-    img_cond_ids[..., 2] = img_cond_ids[..., 2] + torch.arange(width // 2)[None, :]
+    img_cond_ids[..., 1] = img_cond_ids[..., 1] + torch.arange(height // 16)[:, None]
+    img_cond_ids[..., 2] = img_cond_ids[..., 2] + torch.arange(width // 16)[None, :]
     img_cond_ids = repeat(img_cond_ids, "h w c -> b (h w) c", b=bs)
-
-    if target_width is None:
-        target_width = 8 * width
-    if target_height is None:
-        target_height = 8 * height
 
     img = get_noise(
         1,
-        target_height,
-        target_width,
+        height,
+        width,
         device=device,
         dtype=torch.bfloat16,
         seed=seed,
@@ -274,7 +280,7 @@ def prepare_kontext(
     return_dict["img_cond_seq"] = img_cond
     return_dict["img_cond_seq_ids"] = img_cond_ids.to(device)
     return_dict["img_cond_orig"] = img_cond_orig
-    return return_dict, target_height, target_width
+    return return_dict, height, width
 
 
 def time_shift(mu: float, sigma: float, t: Tensor):

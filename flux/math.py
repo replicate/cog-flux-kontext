@@ -4,6 +4,52 @@ from torch import Tensor
 
 from sageattention.core import sageattn_qk_int8_pv_fp8_cuda_sm90
 
+# from torch.distributed.tensor.experimental._attention import _templated_ring_attention
+# import torch.distributed as dist
+# from para_attn.para_attn_interface import ring_attn_func
+
+# import torch.distributed._functional_collectives as ft_c
+import torch.distributed.distributed_c10d as c10d
+from para_attn.para_attn_interface import _sdpa_input_all_to_all, _sdpa_output_all_to_all
+
+def _ulysses_attn_func(
+    query,
+    key,
+    value,
+    attn_mask=None,
+    dropout_p=0.0,
+    is_causal=False,
+    *,
+    scale=None,
+    mesh=None,
+):
+
+    mesh = c10d._get_default_group()
+
+    query = _sdpa_input_all_to_all(query, mesh)
+    key = _sdpa_input_all_to_all(key, mesh)
+    value = _sdpa_input_all_to_all(value, mesh)
+
+    out = sageattn_qk_int8_pv_fp8_cuda_sm90(query, key, value, is_causal=False)
+
+    out = _sdpa_output_all_to_all(out, mesh)
+    return out
+
+
+def ulysses_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
+    q, k = apply_rope(q, k, pe)
+    x = _ulysses_attn_func(q, k, v, is_causal=False)
+    x = rearrange(x, "B H L D -> B L (H D)")
+    return x
+
+
+# def ring_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
+#     q, k = apply_rope(q, k, pe)
+#     x = ring_attn_func(q, k, v, is_causal=False)
+#     x = rearrange(x, "B H L D -> B L (H D)")
+#     return x
+
+
 def quantized_attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
     q, k = apply_rope(q, k, pe)
     x = sageattn_qk_int8_pv_fp8_cuda_sm90(q, k, v, is_causal=False)

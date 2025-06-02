@@ -19,9 +19,10 @@ from weights import download_weights
 from torchao.quantization import quantize_, Float8DynamicActivationFloat8WeightConfig
 from torchao.quantization.granularity import PerTensor, PerRow
 
+from flux.util import ASPECT_RATIOS
+
 torch._dynamo.config.recompile_limit = 40
 
-FP8_QUANTIZATION = True
 # Kontext model configuration
 KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/pre-release/preliminary-dev-kontext.sft"
 KONTEXT_WEIGHTS_PATH = "/models/kontext/preliminary-dev-kontext.sft"
@@ -30,30 +31,8 @@ KONTEXT_WEIGHTS_PATH = "/models/kontext/preliminary-dev-kontext.sft"
 AE_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/safetensors/ae.safetensors"
 AE_WEIGHTS_PATH = "/models/flux-dev/ae.safetensors"
 
-TORCH_COMPILE_CACHE_UNQUANTIZED = "./torch-compile-cache-flux-dev-kontext.bin"
-TORCH_COMPILE_CACHE_FP8 = "./torch-compile-cache-flux-dev-kontext-fp8.bin"
+TORCH_COMPILE_CACHE = "./torch-compile-cache-flux-dev-kontext.bin"
 
-if FP8_QUANTIZATION:
-    TORCH_COMPILE_CACHE = TORCH_COMPILE_CACHE_FP8
-else:
-    TORCH_COMPILE_CACHE = TORCH_COMPILE_CACHE_UNQUANTIZED
-
-# all of these aspect ratio should also be in flux.util.PREFERED_KONTEXT_RESOLUTIONS
-# these are width, height pairs
-ASPECT_RATIOS = {
-    "1:1": (1024, 1024),
-    "16:9": (1328, 800),
-    "21:9": (1568, 672),
-    "3:2": (1248, 832),
-    "2:3": (832, 1248),
-    "4:5": (944, 1104),
-    "5:4": (1104, 944),
-    "3:4": (880, 1184),
-    "4:3": (1184, 880),
-    "9:16": (800, 1328),
-    "9:21": (672, 1568),
-    "match_input_image": (None, None),
-}
 
 def quantize_filter_fn(m, name):
     if isinstance(m, torch.nn.Linear) and "single_blocks" in name and ("linear1" in name or "linear2" in name):
@@ -82,38 +61,26 @@ class FluxDevKontextPredictor(BasePredictor):
 
         # load the torch compile cache
         if os.path.exists(TORCH_COMPILE_CACHE):
+            print(f"Loading torch compile cache from {TORCH_COMPILE_CACHE}")
             with open(TORCH_COMPILE_CACHE, "rb") as f:
                 artifact_bytes = f.read()
-                torch.compiler.load_cache_artifacts(artifact_bytes)
+                info = torch.compiler.load_cache_artifacts(artifact_bytes)
         else:
             print(f"WARNING:Torch compile cache not found at {TORCH_COMPILE_CACHE}")
 
-        
-        if FP8_QUANTIZATION:
-            quantize_(self.model, Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor()), filter_fn=quantize_filter_fn)
+
         self.model = torch.compile(self.model, dynamic=False)
 
         for (h,w) in ASPECT_RATIOS.values():
             if (h,w) == (None, None):
                 continue
             with print_timing(f"warm up model for aspect ratio {h}x{w}"):
-                warm_up_model(h, w, self.model)
+                warm_up_model(h, w, self.model, self.device)
 
         # Initialize safety checker
         self.safety_checker = SafetyChecker()
         print("FluxDevKontextPredictor setup complete")
 
-    # def size_from_aspect_megapixels(
-    #     self, aspect_ratio: str, megapixels: str = "1"
-    # ) -> tuple[int | None, int | None]:
-    #     """Convert aspect ratio and megapixels to width and height"""
-    #     width, height = ASPECT_RATIOS[aspect_ratio]
-    #     if width is None or height is None:
-    #         # For match_input_image, return None values
-    #         return (None, None)
-    #     if megapixels == "0.25":
-    #         width, height = width // 2, height // 2
-    #     return (width, height)
 
     def predict(
         self,
@@ -165,9 +132,9 @@ class FluxDevKontextPredictor(BasePredictor):
             seed = prepare_seed(seed)
 
             if aspect_ratio == "match_input_image":
-                target_width, target_height = None, None
+                target_height, target_width = None, None
             else:
-                target_width, target_height = ASPECT_RATIOS[aspect_ratio]
+                target_height, target_width = ASPECT_RATIOS[aspect_ratio]
 
             # Prepare input for kontext sampling
             with print_timing("prepare input"):

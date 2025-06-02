@@ -13,6 +13,10 @@ from flux.modules.layers import (
 )
 from flux.modules.lora import LinearLora, replace_linear_with_lora
 
+from torch.distributed.tensor.experimental import context_parallel
+from torch.distributed.tensor.experimental._attention import _cp_options
+import torch.distributed._functional_collectives as ft_c
+_cp_options.enable_load_balance = False
 
 @dataclass
 class FluxParams:
@@ -30,6 +34,7 @@ class FluxParams:
     qkv_bias: bool
     guidance_embed: bool
 
+import torch.distributed as dist
 
 class Flux(nn.Module):
     """
@@ -39,6 +44,7 @@ class Flux(nn.Module):
     def __init__(self, params: FluxParams):
         super().__init__()
 
+        self.mesh = dist.init_device_mesh("cuda", (dist.get_world_size(),))
         self.params = params
         self.in_channels = params.in_channels
         self.out_channels = params.out_channels
@@ -107,13 +113,26 @@ class Flux(nn.Module):
         ids = torch.cat((txt_ids, img_ids), dim=1)
         pe = self.pe_embedder(ids)
 
-        for block in self.double_blocks:
-            img, txt = block(img=img, txt=txt, vec=vec, pe=pe)
+        pe_txt = pe[:, :, :txt.shape[1], ...]
+        pe_img = pe[:, :, txt.shape[1]:, ...]
+        img_local = torch.chunk(img, dist.get_world_size(), dim=1)[dist.get_rank()]
+        txt_local = torch.chunk(txt, dist.get_world_size(), dim=1)[dist.get_rank()]
+        pe_img_local = torch.chunk(pe_img, dist.get_world_size(), dim=2)[dist.get_rank()]
+        pe_txt_local = torch.chunk(pe_txt, dist.get_world_size(), dim=2)[dist.get_rank()]
+        pe_local = torch.cat((pe_txt_local, pe_img_local), 2)
 
-        img = torch.cat((txt, img), 1)
+        for block in self.double_blocks:
+            img_local, txt_local = block(img=img_local, txt=txt_local, vec=vec, pe=pe_local)
+
+        img_local = torch.cat((txt_local, img_local), 1)
+
         for block in self.single_blocks:
-            img = block(img, vec=vec, pe=pe)
-        img = img[:, txt.shape[1] :, ...]
+            img_local = block(img_local, vec=vec, pe=pe_local)
+        
+        img_local = img_local[:, txt_local.shape[1]:, ...]
+        img_local = img_local.permute(1,0,2)
+        img = ft_c.all_gather_tensor(img_local, gather_dim=0, group=self.mesh)
+        img = img.permute(1,0,2)
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
         return img
