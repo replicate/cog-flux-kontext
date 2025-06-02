@@ -119,8 +119,8 @@ class FluxDevKontextPredictor(BasePredictor):
         ),
         multi_image_mode: str = Input(
             description="How to handle multiple input images. 'concat' will concatenate the images into one large image, 'separate' will treat each image as a separate prompt.",
-            choices=["concat", "separate"],
-            default="concat",
+            choices=["separate", "concat"],
+            default="separate",
         ),
         aspect_ratio: str = Input(
             description="Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image.",
