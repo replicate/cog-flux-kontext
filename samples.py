@@ -21,34 +21,37 @@ def gen(output_fn, **kwargs):
     response = requests.post(url, json={"input": kwargs})
     data = response.json()
     print("Generated in: ", time.time() - st)
-
-    os.system(f"mv output.png {output_fn}")
+    out_dir = "outputs"
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    os.system(f"mv output.png {out_dir}/{output_fn}")
 
 
 def test_loras():
     """
     runs generations in fp8 and bf16 on the same node! wow!
     """
+    seed = 2
     gen(
-        f"cyberpunk_lady_no_lora.png",
+        f"cyberpunk_lady_no_lora_{seed}.png",
         prompt="a photo of a woman in the style of 80s cyberpunk",
         input_image="https://replicate.delivery/pbxt/N5DXcBZiATNE0n0Wu7ghgVh5i7VoNzzfYtyGoNdbKYnZic7L/replicate-prediction-f2d25rg6gnrma0cq257vdw2n4c.png",
         aspect_ratio="1:1",
         num_outputs=1,
         output_format="png",
         disable_safety_checker=True,
-        seed=123,
+        seed=seed,
         )
-    for strength in range(1, 7):
+    for ind, strength in enumerate([2.5, 2.5]):
         gen(
-            f"cyberpunk_lady_{strength}.png",
+            f"cyberpunk_lady_{strength}_{seed}_{ind}.png",
             prompt="a photo of a woman in the style of 80s cyberpunk",
             input_image="https://replicate.delivery/pbxt/N5DXcBZiATNE0n0Wu7ghgVh5i7VoNzzfYtyGoNdbKYnZic7L/replicate-prediction-f2d25rg6gnrma0cq257vdw2n4c.png",
             aspect_ratio="1:1",
             num_outputs=1,
             output_format="png",
             disable_safety_checker=True,
-            seed=123,
+            seed=seed,
             lora_weights="fofr/flux-80s-cyberpunk",
             lora_strength=strength,
         )

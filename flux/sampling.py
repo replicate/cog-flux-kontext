@@ -227,8 +227,9 @@ def prepare_kontext(
     img_cond_seq = []
     img_cond_seq_ids = []
     img_cond_orig = []
-
+    print(len(img_cond_path), " images to process")
     for ind, img_cond_path in enumerate(img_cond_path):
+        print(f"processing image  {ind} - {img_cond_path}")
         img_cond = Image.open(img_cond_path).convert("RGB")
         width, height = img_cond.size
         aspect_ratio = width / height
@@ -259,7 +260,8 @@ def prepare_kontext(
         img_cond_ids[..., 1] = img_cond_ids[..., 1] + torch.arange(height // 2)[:, None]
         img_cond_ids[..., 2] = img_cond_ids[..., 2] + torch.arange(width // 2)[None, :]
         img_cond_ids = repeat(img_cond_ids, "h w c -> b (h w) c", b=bs)
-        img_cond_seq_ids.append(img_cond_ids)
+        img_cond_seq_ids.append(img_cond_ids.to(device))
+
     if target_width is None:
         target_width = 8 * width
     if target_height is None:
