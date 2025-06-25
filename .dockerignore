@@ -1,6 +1,5 @@
 safety-cache/
 falcon-cache/
-feature-extractor/
 *.png
 *.jpg
 *.jpeg
