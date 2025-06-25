@@ -16,30 +16,17 @@ from safety_checker import SafetyChecker
 from util import print_timing, warm_up_model
 from weights import download_weights
 
-from torchao.quantization import quantize_, Float8DynamicActivationFloat8WeightConfig
-from torchao.quantization.granularity import PerTensor, PerRow
-
 from flux.util import ASPECT_RATIOS
-
-torch._dynamo.config.recompile_limit = 40
 
 # Kontext model configuration
 KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/pre-release/preliminary-dev-kontext.sft"
-KONTEXT_WEIGHTS_PATH = "/models/kontext/preliminary-dev-kontext.sft"
+KONTEXT_WEIGHTS_PATH = "/models/kontext/kontext-dev.sft"
 
 # Model weights URLs
 AE_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/safetensors/ae.safetensors"
 AE_WEIGHTS_PATH = "/models/flux-dev/ae.safetensors"
 
 TORCH_COMPILE_CACHE = "./torch-compile-cache-flux-dev-kontext.bin"
-
-
-def quantize_filter_fn(m, name):
-    if isinstance(m, torch.nn.Linear) and "single_blocks" in name and ("linear1" in name or "linear2" in name):
-        return True
-    else:
-        return False
-
 
 class FluxDevKontextPredictor(BasePredictor):
     """
@@ -58,7 +45,7 @@ class FluxDevKontextPredictor(BasePredictor):
         self.clip = load_clip(self.device)
         self.model = load_kontext_model(device=self.device)
         self.ae = load_ae_local(device=self.device)
-
+        
         # load the torch compile cache
         if os.path.exists(TORCH_COMPILE_CACHE):
             print(f"Loading torch compile cache from {TORCH_COMPILE_CACHE}")
@@ -66,16 +53,15 @@ class FluxDevKontextPredictor(BasePredictor):
                 artifact_bytes = f.read()
                 info = torch.compiler.load_cache_artifacts(artifact_bytes)
         else:
-            print(f"WARNING:Torch compile cache not found at {TORCH_COMPILE_CACHE}")
-
+            print(f"WARNING:Torch compile cache not found at {TORCH_COMPILE_CACHE}, setup may take a while")
 
         self.model = torch.compile(self.model, dynamic=False)
 
-        for (h,w) in ASPECT_RATIOS.values():
-            if (h,w) == (None, None):
-                continue
-            with print_timing(f"warm up model for aspect ratio {h}x{w}"):
-                warm_up_model(h, w, self.model, self.device)
+        # for (h,w) in ASPECT_RATIOS.values():
+        #     if (h,w) == (None, None):
+        #         continue
+        #     with print_timing(f"warm up model for aspect ratio {h}x{w}"):
+        #         warm_up_model(h, w, self.model, self.device)
 
         # Initialize safety checker
         self.safety_checker = SafetyChecker()

@@ -3,19 +3,14 @@ import os
 import torch
 import time
 
-from predict import load_kontext_model, TORCH_COMPILE_CACHE, ASPECT_RATIOS, FP8_QUANTIZATION, quantize_filter_fn
+from predict import load_kontext_model, TORCH_COMPILE_CACHE, ASPECT_RATIOS
 from util import warm_up_model
 torch._dynamo.config.recompile_limit = 50
-
-from torchao.quantization import quantize_, Float8DynamicActivationFloat8WeightConfig
-from torchao.quantization.granularity import PerTensor, PerRow
 
 def generate_torch_compile_cache():
     device = torch.device("cuda")
     model = load_kontext_model(device)
-    if FP8_QUANTIZATION:
-        quantize_(model, Float8DynamicActivationFloat8WeightConfig(granularity=PerTensor()), filter_fn=quantize_filter_fn)
-    model = torch.compile(model, dynamic=False)
+    
     
     if os.path.exists(TORCH_COMPILE_CACHE):
         print(f"Removing existing torch compile cache at {TORCH_COMPILE_CACHE}")

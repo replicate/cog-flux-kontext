@@ -4,10 +4,9 @@ from dataclasses import dataclass
 import torch
 from einops import rearrange
 from torch import Tensor, nn
-import torch.distributed as dist
 
-from flux.math import rope, attention, ulysses_attention
-# from flux.math import quantized_attention as attention
+from flux.math import attention, rope
+
 
 class EmbedND(nn.Module):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
@@ -179,8 +178,7 @@ class DoubleStreamBlock(nn.Module):
         k = torch.cat((txt_k, img_k), dim=2)
         v = torch.cat((txt_v, img_v), dim=2)
 
-        # attn = attention(q, k, v, pe=pe)
-        attn = ulysses_attention(q, k, v, pe=pe)
+        attn = attention(q, k, v, pe=pe)
         txt_attn, img_attn = attn[:, : txt.shape[1]], attn[:, txt.shape[1] :]
 
         # calculate the img bloks
@@ -192,9 +190,6 @@ class DoubleStreamBlock(nn.Module):
         txt = txt + txt_mod2.gate * self.txt_mlp((1 + txt_mod2.scale) * self.txt_norm2(txt) + txt_mod2.shift)
         return img, txt
 
-from .float8_quantize import F8Linear
-
-# sequence_lengths = set()
 
 class SingleStreamBlock(nn.Module):
     """
@@ -216,12 +211,10 @@ class SingleStreamBlock(nn.Module):
         self.scale = qk_scale or head_dim**-0.5
 
         self.mlp_hidden_dim = int(hidden_size * mlp_ratio)
-        # # qkv and mlp_in
+        # qkv and mlp_in
         self.linear1 = nn.Linear(hidden_size, hidden_size * 3 + self.mlp_hidden_dim)
-        # # proj and mlp_out
+        # proj and mlp_out
         self.linear2 = nn.Linear(hidden_size + self.mlp_hidden_dim, hidden_size)
-        self.linear1 = F8Linear(hidden_size, hidden_size * 3 + self.mlp_hidden_dim)
-        self.linear2 = F8Linear(hidden_size + self.mlp_hidden_dim, hidden_size)
 
         self.norm = QKNorm(head_dim)
 
@@ -240,8 +233,7 @@ class SingleStreamBlock(nn.Module):
         q, k = self.norm(q, k, v)
 
         # compute attention
-        # attn = attention(q, k, v, pe=pe)
-        attn = ulysses_attention(q, k, v, pe=pe)
+        attn = attention(q, k, v, pe=pe)
         # compute activation in mlp stream, cat again and run second linear layer
         output = self.linear2(torch.cat((attn, self.mlp_act(mlp)), 2))
         return x + mod.gate * output

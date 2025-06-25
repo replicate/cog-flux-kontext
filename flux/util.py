@@ -32,7 +32,10 @@ def save_image(
     x = rearrange(x[0], "c h w -> h w c")
 
     img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
-    nsfw_score = [x["score"] for x in nsfw_classifier(img) if x["label"] == "nsfw"][0]
+    if nsfw_classifier is not None:
+        nsfw_score = [x["score"] for x in nsfw_classifier(img) if x["label"] == "nsfw"][0]
+    else:
+        nsfw_score = nsfw_threshold - 1.0
 
     if nsfw_score < nsfw_threshold:
         exif_data = Image.Exif()
@@ -303,29 +306,26 @@ configs = {
 }
 
 
-# this is the original list of supported aspect ratios
-# PREFERED_KONTEXT_RESOLUTIONS = [
-#     (672, 1568),
-#     # (688, 1504),
-#     # (720, 1456),
-#     # (752, 1392),
-#     (800, 1328),
-#     (832, 1248),
-#     (880, 1184),
-#     (944, 1104),
-#     (1024, 1024),
-#     (1104, 944),
-#     (1184, 880),
-#     (1248, 832),
-#     (1328, 800),
-#     # (1392, 752),
-#     # (1456, 720),
-#     # (1504, 688),
-#     (1568, 672),
-# ]
+PREFERED_KONTEXT_RESOLUTIONS = [
+    (672, 1568),
+    (688, 1504),
+    (720, 1456),
+    (752, 1392),
+    (800, 1328),
+    (832, 1248),
+    (880, 1184),
+    (944, 1104),
+    (1024, 1024),
+    (1104, 944),
+    (1184, 880),
+    (1248, 832),
+    (1328, 800),
+    (1392, 752),
+    (1456, 720),
+    (1504, 688),
+    (1568, 672),
+]
 
-
-# these tuples represent (height, width) dimensions
 ASPECT_RATIOS = {
     "1:1": (1024, 1024),
     "16:9": (1328, 800),
@@ -337,7 +337,8 @@ ASPECT_RATIOS = {
     "3:4": (880, 1184),
     "4:3": (1184, 880),
     "9:16": (800, 1328),
-    "9:21": (672, 1568)
+    "9:21": (672, 1568),
+    "match_input_image": (None, None),
 }
 
 

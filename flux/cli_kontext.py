@@ -6,8 +6,8 @@ from glob import iglob
 
 import torch
 from fire import Fire
-from transformers import pipeline
 
+from flux.safety import PixtralIntegrity
 from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
 from flux.util import (
     aspect_ratio_to_height_width,
@@ -160,7 +160,6 @@ def main(
     output_dir: str = "output",
     add_sampling_metadata: bool = True,
     img_cond_path: str = "assets/cup.png",
-    **kwargs: dict | None,
 ):
     """
     Sample the flux model. Either interactively (set `--loop`) or run for a
@@ -184,8 +183,6 @@ def main(
         trt: use TensorRT backend for optimized inference
     """
     assert name == "flux-dev", f"Got unknown model name: {name}"
-
-    nsfw_classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection", device=device)
 
     if name not in configs:
         available = ", ".join(configs.keys())
@@ -216,6 +213,8 @@ def main(
     model = load_flow_model(name, device="cpu" if offload else torch_device)
     ae = load_ae(name, device="cpu" if offload else torch_device)
 
+    integrity = PixtralIntegrity(torch.device("cpu"))
+
     rng = torch.Generator(device="cpu")
     opts = SamplingOptions(
         prompt=prompt,
@@ -236,6 +235,25 @@ def main(
             opts.seed = rng.seed()
         print(f"Generating with seed {opts.seed}:\n{opts.prompt}")
         t0 = time.perf_counter()
+
+        if integrity.test_txt(opts.prompt):
+            print("Your prompt has been automatically flagged. Please choose another prompt.")
+            if loop:
+                print("-" * 80)
+                opts = parse_prompt(opts)
+                opts = parse_img_cond_path(opts)
+            else:
+                opts = None
+            continue
+        if integrity.test_image(opts.img_cond_path):
+            print("Your input image has been automatically flagged. Please choose another prompt.")
+            if loop:
+                print("-" * 80)
+                opts = parse_prompt(opts)
+                opts = parse_img_cond_path(opts)
+            else:
+                opts = None
+            continue
 
         if offload:
             t5, clip, ae = t5.to(torch_device), clip.to(torch_device), ae.to(torch_device)
@@ -278,12 +296,24 @@ def main(
         with torch.autocast(device_type=torch_device.type, dtype=torch.bfloat16):
             x = ae.decode(x)
 
+        if integrity.test_image(x.cpu()):
+            print(
+                "Your output image has been automatically flagged. Choose another prompt/image or try again."
+            )
+            if loop:
+                print("-" * 80)
+                opts = parse_prompt(opts)
+                opts = parse_img_cond_path(opts)
+            else:
+                opts = None
+            continue
+
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         t1 = time.perf_counter()
         print(f"Done in {t1 - t0:.1f}s")
 
-        idx = save_image(nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt)
+        idx = save_image(None, name, output_name, idx, x, add_sampling_metadata, prompt)
 
         if loop:
             print("-" * 80)

@@ -35,33 +35,32 @@ class DepthImageEncoder:
         return depth
 
 
-class CannyImageEncoder:
-    def __init__(
-        self,
-        device,
-        min_t: int = 50,
-        max_t: int = 200,
-    ):
-        self.device = device
-        self.min_t = min_t
-        self.max_t = max_t
+# class CannyImageEncoder:
+#     def __init__(
+#         self,
+#         device,
+#         min_t: int = 50,
+#         max_t: int = 200,
+#     ):
+#         self.device = device
+#         self.min_t = min_t
+#         self.max_t = max_t
 
-    def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("having trouble installing opencv libgl dependencies on ubuntu 24.04, this is deprecated for now")
-        # assert img.shape[0] == 1, "Only batch size 1 is supported"
+#     def __call__(self, img: torch.Tensor) -> torch.Tensor:
+#         assert img.shape[0] == 1, "Only batch size 1 is supported"
 
-        # img = rearrange(img[0], "c h w -> h w c")
-        # img = torch.clamp(img, -1.0, 1.0)
-        # img_np = ((img + 1.0) * 127.5).numpy().astype(np.uint8)
+#         img = rearrange(img[0], "c h w -> h w c")
+#         img = torch.clamp(img, -1.0, 1.0)
+#         img_np = ((img + 1.0) * 127.5).numpy().astype(np.uint8)
 
-        # # Apply Canny edge detection
-        # canny = cv2.Canny(img_np, self.min_t, self.max_t)
+#         # Apply Canny edge detection
+#         canny = cv2.Canny(img_np, self.min_t, self.max_t)
 
-        # # Convert back to torch tensor and reshape
-        # canny = torch.from_numpy(canny).float() / 127.5 - 1.0
-        # canny = rearrange(canny, "h w -> 1 1 h w")
-        # canny = repeat(canny, "b 1 ... -> b 3 ...")
-        # return canny.to(self.device)
+#         # Convert back to torch tensor and reshape
+#         canny = torch.from_numpy(canny).float() / 127.5 - 1.0
+#         canny = rearrange(canny, "h w -> 1 1 h w")
+#         canny = repeat(canny, "b 1 ... -> b 3 ...")
+#         return canny.to(self.device)
 
 
 class ReduxImageEncoder(nn.Module):

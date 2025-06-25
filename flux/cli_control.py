@@ -9,7 +9,7 @@ from cuda import cudart
 from fire import Fire
 from transformers import pipeline
 
-from flux.modules.image_embedders import CannyImageEncoder, DepthImageEncoder
+from flux.modules.image_embedders import DepthImageEncoder
 from flux.sampling import denoise, get_noise, get_schedule, prepare_control, unpack
 from flux.trt.trt_manager import TRTManager
 from flux.util import configs, load_ae, load_clip, load_flow_model, load_t5, save_image
@@ -248,7 +248,8 @@ def main(
     if name in ["flux-dev-depth", "flux-dev-depth-lora"]:
         img_embedder = DepthImageEncoder(torch_device)
     elif name in ["flux-dev-canny", "flux-dev-canny-lora"]:
-        img_embedder = CannyImageEncoder(torch_device)
+        raise NotImplementedError()
+        # img_embedder = CannyImageEncoder(torch_device)
     else:
         raise NotImplementedError()
 
