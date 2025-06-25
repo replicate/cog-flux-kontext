@@ -35,7 +35,7 @@ class FluxDevKontextPredictor(BasePredictor):
 
     def setup(self) -> None:
         """Load model weights and initialize the pipeline"""
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device("cuda")
 
         # Download all weights if needed
         download_model_weights()
@@ -47,15 +47,15 @@ class FluxDevKontextPredictor(BasePredictor):
         self.ae = load_ae_local(device=self.device)
         
         # load the torch compile cache
-        if os.path.exists(TORCH_COMPILE_CACHE):
-            print(f"Loading torch compile cache from {TORCH_COMPILE_CACHE}")
-            with open(TORCH_COMPILE_CACHE, "rb") as f:
-                artifact_bytes = f.read()
-                info = torch.compiler.load_cache_artifacts(artifact_bytes)
-        else:
-            print(f"WARNING:Torch compile cache not found at {TORCH_COMPILE_CACHE}, setup may take a while")
+        # if os.path.exists(TORCH_COMPILE_CACHE):
+        #     print(f"Loading torch compile cache from {TORCH_COMPILE_CACHE}")
+        #     with open(TORCH_COMPILE_CACHE, "rb") as f:
+        #         artifact_bytes = f.read()
+        #         info = torch.compiler.load_cache_artifacts(artifact_bytes)
+        # else:
+        #     print(f"WARNING:Torch compile cache not found at {TORCH_COMPILE_CACHE}, setup may take a while")
 
-        self.model = torch.compile(self.model, dynamic=False)
+        self.model = torch.compile(self.model, dynamic=True)
 
         # for (h,w) in ASPECT_RATIOS.values():
         #     if (h,w) == (None, None):

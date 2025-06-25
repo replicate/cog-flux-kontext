@@ -41,7 +41,7 @@ def main():
             seed=42,  # Using fixed seed for consistency
             output_format="png",
             output_quality=80,
-            disable_safety_checker=True,
+            disable_safety_checker=False,
         )
         
         # rename output file to include aspect ratio
