@@ -1,6 +1,5 @@
 safety-cache/
 falcon-cache/
-*.png
 *.jpg
 *.jpeg
 *.webp
