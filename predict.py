@@ -22,11 +22,13 @@ from flux.util import ASPECT_RATIOS
 
 # Kontext model configuration
 KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/release-candidate/kontext-dev.sft"
-KONTEXT_WEIGHTS_PATH = "/models/kontext/kontext-dev.sft"
-
-# Model weights URLs
+KONTEXT_WEIGHTS_PATH = "./models/kontext/kontext-dev.sft"
 AE_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/safetensors/ae.safetensors"
-AE_WEIGHTS_PATH = "/models/flux-dev/ae.safetensors"
+AE_WEIGHTS_PATH = "./models/flux-dev/ae.safetensors"
+T5_WEIGHTS_URL = "https://weights.replicate.delivery/default/official-models/flux/t5/t5-v1_1-xxl.tar"
+T5_WEIGHTS_PATH = "./models/t5"
+CLIP_URL = "https://weights.replicate.delivery/default/official-models/flux/clip/clip-vit-large-patch14.tar"
+CLIP_PATH = "./models/clip"
 
 TORCH_COMPILE_CACHE = "./torch-compile-cache-flux-dev-kontext.bin"
 
@@ -45,10 +47,10 @@ class FluxDevKontextPredictor(BasePredictor):
         # Initialize models
         st = time.time()
         print("Loading t5...")
-        self.t5 = load_t5(self.device, max_length=512)
+        self.t5 = load_t5(self.device, max_length=512, t5_path=T5_WEIGHTS_PATH)
         print(f"Loaded t5 in {time.time() - st} seconds")
         st = time.time()
-        self.clip = load_clip(self.device)
+        self.clip = load_clip(self.device, clip_path=CLIP_PATH)
         print(f"Loaded clip in {time.time() - st} seconds")
         st = time.time()
         self.model = load_kontext_model(device=self.device)
@@ -217,6 +219,20 @@ def download_model_weights():
         print("Autoencoder weights downloaded successfully")
     else:
         print("Autoencoder weights already exist")
+
+    if not os.path.exists(T5_WEIGHTS_PATH):
+        print("T5 weights not found, downloading...")
+        download_weights(T5_WEIGHTS_URL, Path(T5_WEIGHTS_PATH))
+        print("T5 weights downloaded successfully")
+    else:
+        print("T5 weights already exist")
+        
+    if not os.path.exists(CLIP_PATH):
+        print("CLIP weights not found, downloading...")
+        download_weights(CLIP_URL, Path(CLIP_PATH))
+        print("CLIP weights downloaded successfully")
+    else:
+        print("CLIP weights already exist")
 
 
 def load_kontext_model(device: str | torch.device = "cuda"):

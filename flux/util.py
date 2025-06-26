@@ -670,13 +670,13 @@ def load_flow_model(name: str, device: str | torch.device = "cuda", verbose: boo
     return model
 
 
-def load_t5(device: str | torch.device = "cuda", max_length: int = 512) -> HFEmbedder:
+def load_t5(device: str | torch.device = "cuda", max_length: int = 512, t5_path: str = "./models/t5") -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder("google/t5-v1_1-xxl", max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder(t5_path, max_length=max_length, torch_dtype=torch.bfloat16).to(device)
 
 
-def load_clip(device: str | torch.device = "cuda") -> HFEmbedder:
-    return HFEmbedder("openai/clip-vit-large-patch14", max_length=77, torch_dtype=torch.bfloat16).to(device)
+def load_clip(device: str | torch.device = "cuda", clip_path: str = "./models/clip") -> HFEmbedder:
+    return HFEmbedder(clip_path, max_length=77, torch_dtype=torch.bfloat16, is_clip=True).to(device)
 
 
 def load_ae(name: str, device: str | torch.device = "cuda") -> AutoEncoder:
