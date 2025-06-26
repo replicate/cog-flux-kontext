@@ -69,15 +69,12 @@ class FluxDevKontextPredictor(BasePredictor):
             prompt="Make the hair blue",
             input_image=Path("lady.png"),
             aspect_ratio="1:1",
-            megapixels="1",
             num_inference_steps=30,
             guidance=2.5,
             seed=42,
             output_format="png",
             output_quality=100,
             disable_safety_checker=True,
-            lora_weights=None,
-            lora_strength=1.0,
         )
         print(f"Compiled in {time.time() - start_time} seconds")
         print("FluxDevKontextPredictor setup complete")
