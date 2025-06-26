@@ -67,7 +67,7 @@ class FluxDevKontextPredictor(BasePredictor):
         start_time = time.time()
         self.predict(
             prompt="Make the hair blue",
-            input_image=Path("tests/resources/lady..png"),
+            input_image=Path("lady.png"),
             aspect_ratio="1:1",
             megapixels="1",
             num_inference_steps=30,
