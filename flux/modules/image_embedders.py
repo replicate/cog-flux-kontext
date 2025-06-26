@@ -1,7 +1,6 @@
 # import cv2
-import numpy as np
 import torch
-from einops import rearrange, repeat
+from einops import repeat
 from PIL import Image
 from safetensors.torch import load_file as load_sft
 from torch import nn

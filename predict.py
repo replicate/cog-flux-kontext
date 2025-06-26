@@ -3,7 +3,6 @@ import time
 import torch
 from PIL import Image
 from cog import BasePredictor, Path, Input
-import shutil
 
 from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
 from flux.util import (
@@ -15,12 +14,11 @@ from flux.model import Flux
 from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
-from util import print_timing, warm_up_model
+from util import print_timing
 from weights import download_weights
 
 from flux.util import ASPECT_RATIOS
 
-from torch._inductor.fx_passes import post_grad
 
 # Kontext model configuration
 KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/release-candidate/kontext-dev.sft"

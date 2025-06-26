@@ -7,13 +7,10 @@ This script imports the predictor, sets it up, and calls predict with all aspect
 # import os
 # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-from flux.util import ASPECT_RATIOS
 from predict import FluxDevKontextPredictor
 from cog import Path
 import time
 
-import torch.distributed as dist
-import torch
 
 def main():
     predictor = FluxDevKontextPredictor()

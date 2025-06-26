@@ -254,7 +254,8 @@ def save_image(
     print(f"Saving {fn}")
     # bring into PIL format and save
     x = x.clamp(-1, 1)
-    x = embed_watermark(x.float())
+    #zx = embed_watermark(x.float())
+    x = x.float()
     x = rearrange(x[0], "c h w -> h w c")
 
     img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
