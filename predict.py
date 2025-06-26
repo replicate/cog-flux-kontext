@@ -1,4 +1,5 @@
 import os
+import time
 import torch
 from PIL import Image
 from cog import BasePredictor, Path, Input
@@ -44,14 +45,41 @@ class FluxDevKontextPredictor(BasePredictor):
         download_model_weights()
 
         # Initialize models
+        st = time.time()
+        print("Loading t5...")
         self.t5 = load_t5(self.device, max_length=512)
+        print(f"Loaded t5 in {time.time() - st} seconds")
+        st = time.time()
         self.clip = load_clip(self.device)
+        print(f"Loaded clip in {time.time() - st} seconds")
+        st = time.time()
         self.model = load_kontext_model(device=self.device)
+        print(f"Loaded kontext model in {time.time() - st} seconds")
+        st = time.time()
         self.ae = load_ae_local(device=self.device)
+        print(f"Loaded ae in {time.time() - st} seconds")
+        st = time.time()
         self.model = torch.compile(self.model, dynamic=True)
 
         # Initialize safety checker
         self.safety_checker = SafetyChecker()
+        print("Compiling model with torch.compile...")
+        start_time = time.time()
+        self.predict(
+            prompt="Make the hair blue",
+            input_image=Path("tests/resources/lady..png"),
+            aspect_ratio="1:1",
+            megapixels="1",
+            num_inference_steps=30,
+            guidance=2.5,
+            seed=42,
+            output_format="png",
+            output_quality=100,
+            disable_safety_checker=True,
+            lora_weights=None,
+            lora_strength=1.0,
+        )
+        print(f"Compiled in {time.time() - start_time} seconds")
         print("FluxDevKontextPredictor setup complete")
 
 
