@@ -18,7 +18,7 @@ predict:
         input_image: "https://storage.googleapis.com/cog-safe-push-public/fast-car.jpg"
         aspect_ratio: "match_input_image"
         output_format: "png"
-      # match_prompt: A 1328x800px png image of a bus
+      match_prompt: A 1328x800px png image of a bus
 
     # square
     - inputs:
@@ -28,7 +28,7 @@ predict:
         input_image: "https://storage.googleapis.com/cog-safe-push-public/fast-car.jpg"
         aspect_ratio: "match_input_image"
         output_format: "jpg"
-      # match_prompt: A 1024x1024 jpg image of a bus
+      match_prompt: A 1024x1024 jpg image of a bus
 
   fuzz:
     iterations: 10

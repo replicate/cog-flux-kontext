@@ -19,7 +19,7 @@ from weights import download_weights
 from flux.util import ASPECT_RATIOS
 
 # Kontext model configuration
-KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/pre-release/preliminary-dev-kontext.sft"
+KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/release-candidate/kontext-dev.sft"
 KONTEXT_WEIGHTS_PATH = "/models/kontext/kontext-dev.sft"
 
 # Model weights URLs
@@ -45,7 +45,7 @@ class FluxDevKontextPredictor(BasePredictor):
         self.clip = load_clip(self.device)
         self.model = load_kontext_model(device=self.device)
         self.ae = load_ae_local(device=self.device)
-        
+
         # load the torch compile cache
         # if os.path.exists(TORCH_COMPILE_CACHE):
         #     print(f"Loading torch compile cache from {TORCH_COMPILE_CACHE}")
