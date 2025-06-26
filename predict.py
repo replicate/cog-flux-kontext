@@ -13,7 +13,7 @@ from flux.model import Flux
 from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
-from util import print_timing, warm_up_model
+from util import print_timing
 from weights import download_weights
 
 from flux.util import ASPECT_RATIOS
