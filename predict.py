@@ -21,7 +21,7 @@ from weights import WeightsDownloadCache, download_weights_pget
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch-inductor-cache-kontext"
 
 # Kontext model configuration
-KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/pre-release/preliminary-dev-kontext.sft"
+KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/kontext/release-candidate/kontext-dev.sft"
 KONTEXT_WEIGHTS_PATH = "./models/kontext/preliminary-dev-kontext.sft"
 
 # Model weights URLs
