@@ -1,0 +1,16 @@
+numpy
+torch==2.7.1
+torchao
+einops
+fire
+huggingface-hub
+safetensors
+sentencepiece
+transformers
+tokenizers
+protobuf
+diffusers
+loguru
+pybase64
+pydash
+Pillow
