@@ -82,16 +82,18 @@ class TRTManager:
             ModuleName.VAE_ENCODER: "bf16",
         }
 
-        assert (
-            trt_transformer_precision in VALID_TRANSFORMER_PRECISIONS
-        ), f"Invalid precision for flux-transformer `{trt_transformer_precision}`. Possible value are {VALID_TRANSFORMER_PRECISIONS}"
+        assert trt_transformer_precision in VALID_TRANSFORMER_PRECISIONS, (
+            f"Invalid precision for flux-transformer `{trt_transformer_precision}`. Possible value are {VALID_TRANSFORMER_PRECISIONS}"
+        )
         precisions[ModuleName.TRANSFORMER] = (
-            trt_transformer_precision if trt_transformer_precision != "fp4_svd32" else "fp4"
+            trt_transformer_precision
+            if trt_transformer_precision != "fp4_svd32"
+            else "fp4"
         )
 
-        assert (
-            trt_t5_precision in VALID_T5_PRECISIONS
-        ), f"Invalid precision for T5 `{trt_t5_precision}`. Possible value are {VALID_T5_PRECISIONS}"
+        assert trt_t5_precision in VALID_T5_PRECISIONS, (
+            f"Invalid precision for T5 `{trt_t5_precision}`. Possible value are {VALID_T5_PRECISIONS}"
+        )
         precisions[ModuleName.T5] = trt_t5_precision
         return precisions
 
@@ -117,7 +119,9 @@ class TRTManager:
 
             key_value_pair = key_value_pair.split(":")
             if len(key_value_pair) != 2:
-                raise ValueError(f"Invalid key-value pair: {key_value_pair}. Must have length 2.")
+                raise ValueError(
+                    f"Invalid key-value pair: {key_value_pair}. Must have length 2."
+                )
             key, value = key_value_pair
             key = ModuleName(key)
             parsed[key] = value
@@ -146,7 +150,9 @@ class TRTManager:
     ) -> dict[ModuleName, TRTBaseConfig]:
         trt_configs = {}
         for module_name in module_names:
-            config_cls = get_config(module_name=module_name, precision=self.precisions[module_name])
+            config_cls = get_config(
+                module_name=module_name, precision=self.precisions[module_name]
+            )
             custom_onnx_path = custom_onnx_paths.get(module_name, None)
 
             trt_config = config_cls.from_args(
@@ -169,9 +175,13 @@ class TRTManager:
             trt_configs[module_name] = trt_config
 
         if ModuleName.TRANSFORMER in trt_configs and ModuleName.T5 in trt_configs:
-            trt_configs[ModuleName.TRANSFORMER].text_maxlen = trt_configs[ModuleName.T5].text_maxlen
+            trt_configs[ModuleName.TRANSFORMER].text_maxlen = trt_configs[
+                ModuleName.T5
+            ].text_maxlen
         else:
-            warnings.warn("`text_maxlen` attribute of flux-trasformer is not update. Default value is used.")
+            warnings.warn(
+                "`text_maxlen` attribute of flux-trasformer is not update. Default value is used."
+            )
 
         return trt_configs
 

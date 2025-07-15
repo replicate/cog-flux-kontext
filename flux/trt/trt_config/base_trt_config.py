@@ -111,7 +111,9 @@ class TRTBaseConfig:
         print(f"Building TensorRT engine for {onnx_path}: {engine_path}")
 
         # Base command
-        build_command = [f"polygraphy convert {onnx_path} --convert-to trt --output {engine_path}"]
+        build_command = [
+            f"polygraphy convert {onnx_path} --convert-to trt --output {engine_path}"
+        ]
 
         # Precision flags
         build_args = [
@@ -135,7 +137,12 @@ class TRTBaseConfig:
 
         # Timing cache
         if timing_cache:
-            build_args.extend([f"--load-timing-cache {timing_cache}", f"--save-timing-cache {timing_cache}"])
+            build_args.extend(
+                [
+                    f"--load-timing-cache {timing_cache}",
+                    f"--save-timing-cache {timing_cache}",
+                ]
+            )
 
         # Verbosity setting
         verbosity = "extra_verbose" if verbose else "error"
@@ -151,9 +158,15 @@ class TRTBaseConfig:
             profile_args = defaultdict(str)
             for name, dims in input_profile.items():
                 assert len(dims) == 3
-                profile_args["--trt-min-shapes"] += f"{name}:{str(list(dims[0])).replace(' ', '')} "
-                profile_args["--trt-opt-shapes"] += f"{name}:{str(list(dims[1])).replace(' ', '')} "
-                profile_args["--trt-max-shapes"] += f"{name}:{str(list(dims[2])).replace(' ', '')} "
+                profile_args["--trt-min-shapes"] += (
+                    f"{name}:{str(list(dims[0])).replace(' ', '')} "
+                )
+                profile_args["--trt-opt-shapes"] += (
+                    f"{name}:{str(list(dims[1])).replace(' ', '')} "
+                )
+                profile_args["--trt-max-shapes"] += (
+                    f"{name}:{str(list(dims[2])).replace(' ', '')} "
+                )
 
             build_args.extend(f"{k} {v}" for k, v in profile_args.items())
 
@@ -163,10 +176,14 @@ class TRTBaseConfig:
 
         # Execute command with improved error handling
         try:
-            print(f"Engine build command:{fore('yellow')}\n{final_command}\n{style('reset')}")
+            print(
+                f"Engine build command:{fore('yellow')}\n{final_command}\n{style('reset')}"
+            )
             subprocess.run(final_command, check=True, shell=True)
         except subprocess.CalledProcessError as exc:
-            error_msg = f"Failed to build TensorRT engine. Error details:\nCommand: {exc.cmd}\n"
+            error_msg = (
+                f"Failed to build TensorRT engine. Error details:\nCommand: {exc.cmd}\n"
+            )
             raise RuntimeError(error_msg) from exc
 
     @classmethod
@@ -211,22 +228,28 @@ class TRTBaseConfig:
         pass
 
     def _check_batch(self, batch_size):
-        assert (
-            self.min_batch <= batch_size <= self.max_batch
-        ), f"Batch size {batch_size} must be between {self.min_batch} and {self.max_batch}"
+        assert self.min_batch <= batch_size <= self.max_batch, (
+            f"Batch size {batch_size} must be between {self.min_batch} and {self.max_batch}"
+        )
 
     def __post_init__(self):
         self.onnx_path = self._get_onnx_path()
         self.engine_path = self._get_engine_path()
-        assert os.path.isfile(self.onnx_path), "onnx_path do not exists: {}".format(self.onnx_path)
+        assert os.path.isfile(self.onnx_path), "onnx_path do not exists: {}".format(
+            self.onnx_path
+        )
 
     def _get_onnx_path(self) -> str:
         if self.custom_onnx_path:
             return self.custom_onnx_path
 
         repo_id = self._get_repo_id(self.model_name)
-        snapshot_path = snapshot_download(repo_id, allow_patterns=[f"{self.module_name.value}.opt/*"])
-        onnx_model_path = os.path.join(snapshot_path, f"{self.module_name.value}.opt/model.onnx")
+        snapshot_path = snapshot_download(
+            repo_id, allow_patterns=[f"{self.module_name.value}.opt/*"]
+        )
+        onnx_model_path = os.path.join(
+            snapshot_path, f"{self.module_name.value}.opt/model.onnx"
+        )
         return onnx_model_path
 
     def _get_engine_path(self) -> str:

@@ -16,7 +16,11 @@
 
 from dataclasses import dataclass
 
-from flux.trt.trt_config.base_trt_config import ModuleName, TRTBaseConfig, register_config
+from flux.trt.trt_config.base_trt_config import (
+    ModuleName,
+    TRTBaseConfig,
+    register_config,
+)
 from flux.util import configs
 
 

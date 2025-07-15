@@ -21,7 +21,9 @@ from flux.trt.trt_config import VAEDecoderConfig, VAEEncoderConfig
 
 
 class VAEDecoder(Engine):
-    def __init__(self, trt_config: VAEDecoderConfig, stream: torch.cuda.Stream, **kwargs):
+    def __init__(
+        self, trt_config: VAEDecoderConfig, stream: torch.cuda.Stream, **kwargs
+    ):
         super().__init__(trt_config=trt_config, stream=stream, **kwargs)
 
     @torch.inference_mode()
@@ -37,7 +39,9 @@ class VAEDecoder(Engine):
 
 
 class VAEEncoder(Engine):
-    def __init__(self, trt_config: VAEEncoderConfig, stream: torch.cuda.Stream, **kwargs):
+    def __init__(
+        self, trt_config: VAEEncoderConfig, stream: torch.cuda.Stream, **kwargs
+    ):
         super().__init__(trt_config=trt_config, stream=stream, **kwargs)
 
     @torch.inference_mode()

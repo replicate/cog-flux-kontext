@@ -1,0 +1,4 @@
+#!/bin/bash -eu
+export PYTHONPATH="${PYTHONPATH:+${PYTHONPATH}:}$(pwd)"
+
+pytest test/

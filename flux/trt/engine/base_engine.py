@@ -110,7 +110,9 @@ class BaseEngine(ABC):
             trt.DataType.BF16: torch.bfloat16,
         }
         if datatype not in datatype_mapping:
-            raise ValueError(f"No PyTorch equivalent for TensorRT data type: {datatype}")
+            raise ValueError(
+                f"No PyTorch equivalent for TensorRT data type: {datatype}"
+            )
 
         return datatype_mapping[datatype]
 
@@ -146,7 +148,9 @@ class Engine(BaseEngine):
             self.engine: trt.ICudaEngine | bytes = None
             self.cpu_engine_buffer: bytes = bytes_from_path(self.trt_config.engine_path)
         else:
-            self.engine: trt.ICudaEngine | bytes = bytes_from_path(self.trt_config.engine_path)
+            self.engine: trt.ICudaEngine | bytes = bytes_from_path(
+                self.trt_config.engine_path
+            )
 
         assert allocation_policy in TRT_ALLOCATION_POLICY
         self.allocation_policy = allocation_policy
@@ -154,7 +158,9 @@ class Engine(BaseEngine):
         self.cuda_graph = None
 
     @abstractmethod
-    def __call__(self, *args, **Kwargs) -> torch.Tensor | dict[str, torch.Tensor] | tuple[torch.Tensor]:
+    def __call__(
+        self, *args, **Kwargs
+    ) -> torch.Tensor | dict[str, torch.Tensor] | tuple[torch.Tensor]:
         pass
 
     def cpu(self) -> "Engine":
@@ -171,7 +177,11 @@ class Engine(BaseEngine):
     def cuda(self) -> "Engine":
         if self.device == torch.device("cuda"):
             return self
-        buffer = self.cpu_engine_buffer if TRT_OFFLOAD_POLICY == "cpu_buffer" else self.engine
+        buffer = (
+            self.cpu_engine_buffer
+            if TRT_OFFLOAD_POLICY == "cpu_buffer"
+            else self.engine
+        )
         self.engine = engine_from_bytes(buffer)
         gc.collect()
         self.context = self.engine.create_execution_context_without_device_memory()
@@ -204,12 +214,17 @@ class Engine(BaseEngine):
             tensor_name = self.engine.get_tensor_name(binding)
             tensor_shape = shape_dict[tensor_name]
 
-            if tensor_name in self.tensors and self.tensors[tensor_name].shape == tensor_shape:
+            if (
+                tensor_name in self.tensors
+                and self.tensors[tensor_name].shape == tensor_shape
+            ):
                 continue
 
             if self.engine.get_tensor_mode(tensor_name) == trt.TensorIOMode.INPUT:
                 self.context.set_input_shape(tensor_name, tensor_shape)
-            tensor_dtype = self.trt_datatype_to_torch(self.engine.get_tensor_dtype(tensor_name))
+            tensor_dtype = self.trt_datatype_to_torch(
+                self.engine.get_tensor_dtype(tensor_name)
+            )
             tensor = torch.empty(
                 size=tensor_shape,
                 dtype=tensor_dtype,
@@ -223,7 +238,9 @@ class Engine(BaseEngine):
     def override_shapes(self, feed_dict: Dict[str, torch.Tensor]):
         for name, tensor in feed_dict.items():
             shape = tensor.shape
-            assert tensor.dtype == self.trt_datatype_to_torch(self.engine.get_tensor_dtype(name)), (
+            assert tensor.dtype == self.trt_datatype_to_torch(
+                self.engine.get_tensor_dtype(name)
+            ), (
                 f"Debug: Mismatched data types for tensor '{name}'. "
                 f"Expected: {self.trt_datatype_to_torch(self.engine.get_tensor_dtype(name))}, "
                 f"Found: {tensor.dtype} "
@@ -238,8 +255,14 @@ class Engine(BaseEngine):
             dtype = self.trt_datatype_to_torch(self.engine.get_tensor_dtype(name))
             shape = self.context.get_tensor_shape(name)
             if -1 in shape:
-                raise Exception("Unspecified shape identified for tensor {}: {} ".format(name, shape))
-            self.tensors[name] = torch.zeros(tuple(shape), dtype=dtype, device=self.device).contiguous()
+                raise Exception(
+                    "Unspecified shape identified for tensor {}: {} ".format(
+                        name, shape
+                    )
+                )
+            self.tensors[name] = torch.zeros(
+                tuple(shape), dtype=dtype, device=self.device
+            ).contiguous()
             self.context.set_tensor_address(name, self.tensors[name].data_ptr())
 
         if self.allocation_policy == "dynamic":

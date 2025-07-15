@@ -34,7 +34,9 @@ def get_noise(
     ).to(device)
 
 
-def prepare(t5: HFEmbedder, clip: HFEmbedder, img: Tensor, prompt: str | list[str]) -> dict[str, Tensor]:
+def prepare(
+    t5: HFEmbedder, clip: HFEmbedder, img: Tensor, prompt: str | list[str]
+) -> dict[str, Tensor]:
     bs, c, h, w = img.shape
     if bs == 1 and not isinstance(prompt, str):
         bs = len(prompt)
@@ -228,7 +230,9 @@ def prepare_kontext(
     width, height = img_cond.size
     aspect_ratio = width / height
     # Kontext is trained on specific resolutions, using one of them is recommended
-    _, width, height = min((abs(aspect_ratio - w / h), w, h) for w, h in PREFERED_KONTEXT_RESOLUTIONS)
+    _, width, height = min(
+        (abs(aspect_ratio - w / h), w, h) for w, h in PREFERED_KONTEXT_RESOLUTIONS
+    )
     width = 2 * int(width / 16)
     height = 2 * int(height / 16)
 
@@ -325,14 +329,14 @@ def denoise(
     compute_step_map: list[bool] | None = None,
     n_derivatives: int = 1,
 ):
-
     # this is ignored for schnell
     num_steps = len(timesteps) - 1
     if compute_step_map is None:
         compute_step_map = [True] * num_steps
     else:
-        assert len(compute_step_map) == num_steps, "compute_step_map must be the same length as timesteps"
-    
+        assert len(compute_step_map) == num_steps, (
+            "compute_step_map must be the same length as timesteps"
+        )
 
     order = n_derivatives + 1
     taylor_seer_state = {
@@ -342,21 +346,22 @@ def denoise(
         "current_step": 0,
     }
 
-    guidance_vec = torch.full((img.shape[0],), guidance, device=img.device, dtype=img.dtype)
+    guidance_vec = torch.full(
+        (img.shape[0],), guidance, device=img.device, dtype=img.dtype
+    )
     for current_step, (t_curr, t_prev) in enumerate(zip(timesteps[:-1], timesteps[1:])):
-        
         t_vec = torch.full((img.shape[0],), t_curr, dtype=img.dtype, device=img.device)
         img_input = img
         img_input_ids = img_ids
         if img_cond is not None:
             img_input = torch.cat((img, img_cond), dim=-1)
         if img_cond_seq is not None:
-            assert (
-                img_cond_seq_ids is not None
-            ), "You need to provide either both or neither of the sequence conditioning"
+            assert img_cond_seq_ids is not None, (
+                "You need to provide either both or neither of the sequence conditioning"
+            )
             img_input = torch.cat((img_input, img_cond_seq), dim=1)
             img_input_ids = torch.cat((img_input_ids, img_cond_seq_ids), dim=1)
-        
+
         if compute_step_map[current_step]:
             pred = model(
                 img=img_input,
@@ -368,14 +373,22 @@ def denoise(
                 guidance=guidance_vec,
             )
 
-            taylor_seer_state['dY_prev'] = taylor_seer_state['dY_current']
-            taylor_seer_state['dY_current'] = approximate_derivative(pred, taylor_seer_state['dY_prev'], current_step, taylor_seer_state['last_non_approximated_step'])
-            taylor_seer_state['last_non_approximated_step'] = current_step
+            taylor_seer_state["dY_prev"] = taylor_seer_state["dY_current"]
+            taylor_seer_state["dY_current"] = approximate_derivative(
+                pred,
+                taylor_seer_state["dY_prev"],
+                current_step,
+                taylor_seer_state["last_non_approximated_step"],
+            )
+            taylor_seer_state["last_non_approximated_step"] = current_step
         else:
-            finite_difference_window = current_step - taylor_seer_state['last_non_approximated_step']
-            pred = approximate_value(taylor_seer_state['dY_current'], finite_difference_window)
+            finite_difference_window = (
+                current_step - taylor_seer_state["last_non_approximated_step"]
+            )
+            pred = approximate_value(
+                taylor_seer_state["dY_current"], finite_difference_window
+            )
 
-        
         if img_input_ids is not None:
             pred = pred[:, : img.shape[1]]
 

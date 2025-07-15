@@ -32,7 +32,9 @@ class SamplingOptions:
 
 
 def parse_prompt(options: SamplingOptions) -> SamplingOptions | None:
-    user_question = "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    user_question = (
+        "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    )
     usage = (
         "Usage: Either write your prompt directly, leave this field empty "
         "to repeat the prompt or write a command starting with a slash:\n"
@@ -54,7 +56,9 @@ def parse_prompt(options: SamplingOptions) -> SamplingOptions | None:
                 options.height = None
                 print("Setting resolution to input image resolution.")
             else:
-                options.width, options.height = aspect_ratio_to_height_width(ratio_prompt)
+                options.width, options.height = aspect_ratio_to_height_width(
+                    ratio_prompt
+                )
                 print(f"Setting resolution to {options.width} x {options.height}.")
         elif prompt.startswith("/h"):
             if prompt.count(" ") != 1:
@@ -109,7 +113,9 @@ def parse_img_cond_path(options: SamplingOptions | None) -> SamplingOptions | No
     if options is None:
         return None
 
-    user_question = "Next input image (write /h for help, /q to quit and leave empty to repeat):\n"
+    user_question = (
+        "Next input image (write /h for help, /q to quit and leave empty to repeat):\n"
+    )
     usage = (
         "Usage: Either write a path to an image directly, leave this field empty "
         "to repeat the last input image or write a command starting with a slash:\n"
@@ -195,7 +201,11 @@ def main(
         os.makedirs(output_dir)
         idx = 0
     else:
-        fns = [fn for fn in iglob(output_name.format(idx="*")) if re.search(r"img_[0-9]+\.jpg$", fn)]
+        fns = [
+            fn
+            for fn in iglob(output_name.format(idx="*"))
+            if re.search(r"img_[0-9]+\.jpg$", fn)
+        ]
         if len(fns) > 0:
             idx = max(int(fn.split("_")[-1].split(".")[0]) for fn in fns) + 1
         else:
@@ -239,7 +249,9 @@ def main(
             trt_static_shape=False,
         )
 
-        model = engines[ModuleName.TRANSFORMER].to(device="cpu" if offload else torch_device)
+        model = engines[ModuleName.TRANSFORMER].to(
+            device="cpu" if offload else torch_device
+        )
         clip = engines[ModuleName.CLIP].to(torch_device)
         t5 = engines[ModuleName.T5].to(device="cpu" if offload else torch_device)
 
@@ -268,7 +280,9 @@ def main(
         t0 = time.perf_counter()
 
         if content_filter.test_txt(opts.prompt):
-            print("Your prompt has been automatically flagged. Please choose another prompt.")
+            print(
+                "Your prompt has been automatically flagged. Please choose another prompt."
+            )
             if loop:
                 print("-" * 80)
                 opts = parse_prompt(opts)
@@ -277,7 +291,9 @@ def main(
                 opts = None
             continue
         if content_filter.test_image(opts.img_cond_path):
-            print("Your input image has been automatically flagged. Please choose another image.")
+            print(
+                "Your input image has been automatically flagged. Please choose another image."
+            )
             if loop:
                 print("-" * 80)
                 opts = parse_prompt(opts)
@@ -287,7 +303,11 @@ def main(
             continue
 
         if offload:
-            t5, clip, ae = t5.to(torch_device), clip.to(torch_device), ae.to(torch_device)
+            t5, clip, ae = (
+                t5.to(torch_device),
+                clip.to(torch_device),
+                ae.to(torch_device),
+            )
         inp, height, width = prepare_kontext(
             t5=t5,
             clip=clip,
@@ -305,7 +325,9 @@ def main(
         save_file({k: v.cpu().contiguous() for k, v in inp.items()}, "output/noise.sft")
         inp.pop("img_cond_orig")
         opts.seed = None
-        timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
+        timesteps = get_schedule(
+            opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell")
+        )
 
         # offload TEs and AE to CPU, load model to gpu
         if offload:
@@ -353,7 +375,14 @@ def main(
         print(f"Done in {t1 - t0:.1f}s")
 
         idx = save_image(
-            None, name, output_name, idx, x, add_sampling_metadata, prompt, track_usage=track_usage
+            None,
+            name,
+            output_name,
+            idx,
+            x,
+            add_sampling_metadata,
+            prompt,
+            track_usage=track_usage,
         )
 
         if loop:

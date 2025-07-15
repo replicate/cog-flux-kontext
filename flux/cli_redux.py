@@ -171,7 +171,9 @@ def main(
         track_usage: track usage of the model for licensing purposes
     """
 
-    nsfw_classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection", device=device)
+    nsfw_classifier = pipeline(
+        "image-classification", model="Falconsai/nsfw_image_detection", device=device
+    )
 
     if name not in (available := ["flux-dev", "flux-schnell"]):
         raise ValueError(f"Got unknown model name: {name}, chose from {available}")
@@ -185,7 +187,11 @@ def main(
         os.makedirs(output_dir)
         idx = 0
     else:
-        fns = [fn for fn in iglob(output_name.format(idx="*")) if re.search(r"img_[0-9]+\.jpg$", fn)]
+        fns = [
+            fn
+            for fn in iglob(output_name.format(idx="*"))
+            if re.search(r"img_[0-9]+\.jpg$", fn)
+        ]
         if len(fns) > 0:
             idx = max(int(fn.split("_")[-1].split(".")[0]) for fn in fns) + 1
         else:
@@ -199,7 +205,11 @@ def main(
 
     # Download and initialize the Redux adapter
     redux_path = str(
-        get_checkpoint_path("black-forest-labs/FLUX.1-Redux-dev", "flux1-redux-dev.safetensors", "FLUX_REDUX")
+        get_checkpoint_path(
+            "black-forest-labs/FLUX.1-Redux-dev",
+            "flux1-redux-dev.safetensors",
+            "FLUX_REDUX",
+        )
     )
     img_embedder = ReduxImageEncoder(torch_device, redux_path=redux_path)
 
@@ -247,7 +257,9 @@ def main(
             encoder=img_embedder,
             img_cond_path=opts.img_cond_path,
         )
-        timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
+        timesteps = get_schedule(
+            opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell")
+        )
 
         # offload TEs to CPU, load model to gpu
         if offload:
@@ -275,7 +287,14 @@ def main(
         print(f"Done in {t1 - t0:.1f}s")
 
         idx = save_image(
-            nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt, track_usage=track_usage
+            nsfw_classifier,
+            name,
+            output_name,
+            idx,
+            x,
+            add_sampling_metadata,
+            prompt,
+            track_usage=track_usage,
         )
 
         if loop:

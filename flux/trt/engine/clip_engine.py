@@ -44,7 +44,11 @@ class CLIPEngine(Engine):
                 padding="max_length",
                 return_tensors="pt",
             )
-            feed_dict = {"input_ids": feed_dict["input_ids"].to(dtype=self.get_dtype("input_ids"))}
+            feed_dict = {
+                "input_ids": feed_dict["input_ids"].to(
+                    dtype=self.get_dtype("input_ids")
+                )
+            }
 
             pooled_embeddings = self.infer(feed_dict)["pooled_embeddings"]
 

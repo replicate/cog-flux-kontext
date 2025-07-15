@@ -8,6 +8,7 @@ import requests
 import torch
 from einops import rearrange
 from huggingface_hub import hf_hub_download, login
+
 # from imwatermark import WatermarkEncoder
 from PIL import ExifTags, Image
 from safetensors.torch import load_file as load_sft
@@ -27,7 +28,9 @@ os.environ.setdefault("TRT_ENGINE_DIR", str(CHECKPOINTS_DIR / "trt_engines"))
 def ensure_hf_auth():
     hf_token = os.environ.get("HF_TOKEN")
     if hf_token:
-        print("Trying to authenticate to HuggingFace with the HF_TOKEN environment variable.")
+        print(
+            "Trying to authenticate to HuggingFace with the HF_TOKEN environment variable."
+        )
         try:
             login(token=hf_token)
             print("Successfully authenticated with HuggingFace using HF_TOKEN")
@@ -57,7 +60,9 @@ def prompt_for_hf_auth():
         return False
     except Exception as auth_e:
         print(f"Authentication failed: {auth_e}")
-        print("Tip: You can also run 'huggingface-cli login' or set HF_TOKEN environment variable")
+        print(
+            "Tip: You can also run 'huggingface-cli login' or set HF_TOKEN environment variable"
+        )
         return False
 
 
@@ -85,19 +90,27 @@ def get_checkpoint_path(repo_id: str, filename: str, env_var: str) -> Path:
         print(f"Downloading {filename} from {repo_id} to {local_path}")
         try:
             ensure_hf_auth()
-            hf_hub_download(repo_id=repo_id, filename=filename, local_dir=checkpoint_dir)
+            hf_hub_download(
+                repo_id=repo_id, filename=filename, local_dir=checkpoint_dir
+            )
         except Exception as e:
             if "gated repo" in str(e).lower() or "restricted" in str(e).lower():
-                print(f"\nError: Cannot access {repo_id} -- this is a gated repository.")
+                print(
+                    f"\nError: Cannot access {repo_id} -- this is a gated repository."
+                )
 
                 # Try one more time to authenticate
                 if prompt_for_hf_auth():
                     # Retry the download after authentication
                     print("Retrying download...")
-                    hf_hub_download(repo_id=repo_id, filename=filename, local_dir=checkpoint_dir)
+                    hf_hub_download(
+                        repo_id=repo_id, filename=filename, local_dir=checkpoint_dir
+                    )
                 else:
                     print("Authentication failed or cancelled.")
-                    print("You can also run 'huggingface-cli login' or set HF_TOKEN environment variable")
+                    print(
+                        "You can also run 'huggingface-cli login' or set HF_TOKEN environment variable"
+                    )
                     raise RuntimeError(f"Authentication required for {repo_id}")
             else:
                 raise e
@@ -105,7 +118,9 @@ def get_checkpoint_path(repo_id: str, filename: str, env_var: str) -> Path:
     return local_path
 
 
-def download_onnx_models_for_trt(model_name: str, trt_transformer_precision: str = "bf16") -> str | None:
+def download_onnx_models_for_trt(
+    model_name: str, trt_transformer_precision: str = "bf16"
+) -> str | None:
     """Download ONNX models for TRT to our checkpoints directory"""
     onnx_repo_map = {
         "flux-dev": "black-forest-labs/FLUX.1-dev-onnx",
@@ -198,7 +213,9 @@ def download_onnx_models_for_trt(model_name: str, trt_transformer_precision: str
     return ",".join(custom_paths)
 
 
-def check_onnx_access_for_trt(model_name: str, trt_transformer_precision: str = "bf16") -> str | None:
+def check_onnx_access_for_trt(
+    model_name: str, trt_transformer_precision: str = "bf16"
+) -> str | None:
     """Check ONNX access and download models for TRT - returns ONNX directory path"""
     return download_onnx_models_for_trt(model_name, trt_transformer_precision)
 
@@ -224,7 +241,9 @@ def track_usage_via_api(name: str, n=1) -> None:
     }
 
     if name not in model_slug_map:
-        print(f"Skipping tracking usage for {name}, as it cannot be tracked. Please check the model name.")
+        print(
+            f"Skipping tracking usage for {name}, as it cannot be tracked. Please check the model name."
+        )
         return
 
     model_slug = model_slug_map[name]
@@ -234,7 +253,9 @@ def track_usage_via_api(name: str, n=1) -> None:
 
     response = requests.post(url, headers=headers, json=payload)
     if response.status_code != 200:
-        raise Exception(f"Failed to track usage: {response.status_code} {response.text}")
+        raise Exception(
+            f"Failed to track usage: {response.status_code} {response.text}"
+        )
     else:
         print(f"Successfully tracked usage for {name} with {n} generations")
 
@@ -254,13 +275,15 @@ def save_image(
     print(f"Saving {fn}")
     # bring into PIL format and save
     x = x.clamp(-1, 1)
-    #zx = embed_watermark(x.float())
+    # zx = embed_watermark(x.float())
     x = x.float()
     x = rearrange(x[0], "c h w -> h w c")
 
     img = Image.fromarray((127.5 * (x + 1.0)).cpu().byte().numpy())
     if nsfw_classifier is not None:
-        nsfw_score = [x["score"] for x in nsfw_classifier(img) if x["label"] == "nsfw"][0]
+        nsfw_score = [x["score"] for x in nsfw_classifier(img) if x["label"] == "nsfw"][
+            0
+        ]
     else:
         nsfw_score = nsfw_threshold - 1.0
 
@@ -618,7 +641,9 @@ ASPECT_RATIOS = {
 }
 
 
-def aspect_ratio_to_height_width(aspect_ratio: str, area: int = 1024**2) -> tuple[int, int]:
+def aspect_ratio_to_height_width(
+    aspect_ratio: str, area: int = 1024**2
+) -> tuple[int, int]:
     width = float(aspect_ratio.split(":")[0])
     height = float(aspect_ratio.split(":")[1])
     ratio = width / height
@@ -638,7 +663,9 @@ def print_load_warning(missing: list[str], unexpected: list[str]) -> None:
         print(f"Got {len(unexpected)} unexpected keys:\n\t" + "\n\t".join(unexpected))
 
 
-def load_flow_model(name: str, device: str | torch.device = "cuda", verbose: bool = True) -> Flux:
+def load_flow_model(
+    name: str, device: str | torch.device = "cuda", verbose: bool = True
+) -> Flux:
     # Loading Flux
     print("Init model")
     config = configs[name]
@@ -661,7 +688,9 @@ def load_flow_model(name: str, device: str | torch.device = "cuda", verbose: boo
 
     if config.lora_repo_id is not None and config.lora_filename is not None:
         print("Loading LoRA")
-        lora_path = str(get_checkpoint_path(config.lora_repo_id, config.lora_filename, "FLUX_LORA"))
+        lora_path = str(
+            get_checkpoint_path(config.lora_repo_id, config.lora_filename, "FLUX_LORA")
+        )
         lora_sd = load_sft(lora_path, device=str(device))
         # loading the lora params + overwriting scale values in the norms
         missing, unexpected = model.load_state_dict(lora_sd, strict=False, assign=True)
@@ -670,13 +699,23 @@ def load_flow_model(name: str, device: str | torch.device = "cuda", verbose: boo
     return model
 
 
-def load_t5(device: str | torch.device = "cuda", max_length: int = 512, t5_path: str = "./models/t5") -> HFEmbedder:
+def load_t5(
+    device: str | torch.device = "cuda",
+    max_length: int = 512,
+    t5_path: str = "./models/t5",
+) -> HFEmbedder:
     # max length 64, 128, 256 and 512 should work (if your sequence is short enough)
-    return HFEmbedder(t5_path, max_length=max_length, torch_dtype=torch.bfloat16).to(device)
+    return HFEmbedder(t5_path, max_length=max_length, torch_dtype=torch.bfloat16).to(
+        device
+    )
 
 
-def load_clip(device: str | torch.device = "cuda", clip_path: str = "./models/clip") -> HFEmbedder:
-    return HFEmbedder(clip_path, max_length=77, torch_dtype=torch.bfloat16, is_clip=True).to(device)
+def load_clip(
+    device: str | torch.device = "cuda", clip_path: str = "./models/clip"
+) -> HFEmbedder:
+    return HFEmbedder(
+        clip_path, max_length=77, torch_dtype=torch.bfloat16, is_clip=True
+    ).to(device)
 
 
 def load_ae(name: str, device: str | torch.device = "cuda") -> AutoEncoder:
@@ -706,15 +745,14 @@ def optionally_expand_state_dict(model: torch.nn.Module, state_dict: dict) -> di
                     f"Expanding '{name}' with shape {state_dict[name].shape} to model parameter with shape {param.shape}."
                 )
                 # expand with zeros:
-                expanded_state_dict_weight = torch.zeros_like(param, device=state_dict[name].device)
+                expanded_state_dict_weight = torch.zeros_like(
+                    param, device=state_dict[name].device
+                )
                 slices = tuple(slice(0, dim) for dim in state_dict[name].shape)
                 expanded_state_dict_weight[slices] = state_dict[name]
                 state_dict[name] = expanded_state_dict_weight
 
     return state_dict
-
-
-
 
 
 # class WatermarkEmbedder:

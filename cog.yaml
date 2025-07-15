@@ -2,30 +2,10 @@
 # Reference: https://cog.run/yaml
 
 build:
-  # set to true if your model requires a GPU
   gpu: true
   cuda: "12.6"
-
   python_version: "3.11"
-
-  python_packages:
-    - "numpy"
-    - "torch==2.7.1"
-    - "torchao"
-    - "einops"
-    - "fire"
-    - "huggingface-hub"
-    - "safetensors"
-    - "sentencepiece"
-    - "transformers"
-    - "tokenizers"
-    - "protobuf"
-    - "diffusers"
-    - "loguru"
-    - "pybase64"
-    - "pydash"
-    - "Pillow"
-
+  python_requirements: "requirements.txt"
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
     - wget -O /root/.pyenv/versions/3.11.12/lib/python3.11/site-packages/torch/_inductor/fx_passes/post_grad.py https://gist.githubusercontent.com/alexarmbr/d3f11394d2cb79300d7cf2a0399c2605/raw/378fe432502da29f0f35204b8cd541d854153d23/patched_torch_post_grad.py

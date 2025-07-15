@@ -26,7 +26,9 @@ class SamplingOptions:
 
 
 def parse_prompt(options: SamplingOptions) -> SamplingOptions | None:
-    user_question = "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    user_question = (
+        "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    )
     usage = (
         "Usage: Either write your prompt directly, leave this field empty "
         "to repeat the prompt or write a command starting with a slash:\n"
@@ -131,13 +133,17 @@ def parse_img_cond_path(options: SamplingOptions | None) -> SamplingOptions | No
     return options
 
 
-def parse_lora_scale(options: SamplingOptions | None) -> tuple[SamplingOptions | None, bool]:
+def parse_lora_scale(
+    options: SamplingOptions | None,
+) -> tuple[SamplingOptions | None, bool]:
     changed = False
 
     if options is None:
         return None, changed
 
-    user_question = "Next lora scale (write /h for help, /q to quit and leave empty to repeat):\n"
+    user_question = (
+        "Next lora scale (write /h for help, /q to quit and leave empty to repeat):\n"
+    )
     usage = (
         "Usage: Either write your prompt directly, leave this field empty "
         "to repeat the lora scale or write a command starting with a slash:\n"
@@ -200,7 +206,9 @@ def main(
         trt_transformer_precision: specify transformer precision for inference
         track_usage: track usage of the model for licensing purposes
     """
-    nsfw_classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection", device=device)
+    nsfw_classifier = pipeline(
+        "image-classification", model="Falconsai/nsfw_image_detection", device=device
+    )
 
     if "lora" in name:
         assert not trt, "TRT does not support LORA"
@@ -230,7 +238,11 @@ def main(
         os.makedirs(output_dir)
         idx = 0
     else:
-        fns = [fn for fn in iglob(output_name.format(idx="*")) if re.search(r"img_[0-9]+\.jpg$", fn)]
+        fns = [
+            fn
+            for fn in iglob(output_name.format(idx="*"))
+            if re.search(r"img_[0-9]+\.jpg$", fn)
+        ]
         if len(fns) > 0:
             idx = max(int(fn.split("_")[-1].split(".")[0]) for fn in fns) + 1
         else:
@@ -275,7 +287,9 @@ def main(
         )
 
         ae = engines[ModuleName.VAE].to(device="cpu" if offload else torch_device)
-        model = engines[ModuleName.TRANSFORMER].to(device="cpu" if offload else torch_device)
+        model = engines[ModuleName.TRANSFORMER].to(
+            device="cpu" if offload else torch_device
+        )
         clip = engines[ModuleName.CLIP].to(torch_device)
         t5 = engines[ModuleName.T5].to(device="cpu" if offload else torch_device)
 
@@ -325,7 +339,11 @@ def main(
         )
         opts.seed = None
         if offload:
-            t5, clip, ae = t5.to(torch_device), clip.to(torch_device), ae.to(torch_device)
+            t5, clip, ae = (
+                t5.to(torch_device),
+                clip.to(torch_device),
+                ae.to(torch_device),
+            )
         inp = prepare_control(
             t5,
             clip,
@@ -335,7 +353,9 @@ def main(
             encoder=img_embedder,
             img_cond_path=opts.img_cond_path,
         )
-        timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
+        timesteps = get_schedule(
+            opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell")
+        )
 
         # offload TEs and AE to CPU, load model to gpu
         if offload:
@@ -363,7 +383,14 @@ def main(
         print(f"Done in {t1 - t0:.1f}s")
 
         idx = save_image(
-            nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt, track_usage=track_usage
+            nsfw_classifier,
+            name,
+            output_name,
+            idx,
+            x,
+            add_sampling_metadata,
+            prompt,
+            track_usage=track_usage,
         )
 
         if loop:
