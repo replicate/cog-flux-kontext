@@ -1,6 +1,9 @@
 name: Push models
 
 on:
+  pull_request:
+  push:
+    branches: [ main ]
   workflow_dispatch:
     inputs:
       ignore_schema_checks:
@@ -14,6 +17,7 @@ on:
 
 jobs:
   cog-safe-push:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest-4-cores
 
     steps:
@@ -62,3 +66,43 @@ jobs:
         echo "==="
         echo "==="
         cog-safe-push --push-official-model --config cog-safe-push-configs/$model.yaml -vv ${{ inputs.ignore_schema_checks && '--ignore-schema-compatibility' || '' }}
+
+  unit-test:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements-test.txt
+        pip install -r requirements.txt
+
+    - name: Run pytest
+      run: |
+        ./script/unit-test
+
+  lint:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_dispatch'
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements-test.txt
+        pip install -r requirements.txt
+    - name: Lint
+      run: |
+        ./script/lint
