@@ -3,6 +3,7 @@ from lora import load_lora, unload_loras
 import torch
 from PIL import Image
 from cog import BasePredictor, Path, Input
+import time
 
 from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
 from flux.util import (
@@ -66,7 +67,22 @@ class FluxDevKontextPredictor(BasePredictor):
         self.cur_strength = -10
         # Compile models for faster execution
         # print("Compiling models with torch.compile...")
-        # self.model = torch.compile(self.model, mode="max-autotune")
+        self.model = torch.compile(self.model, dynamic=True)
+        start_time = time.time()
+        self.predict(
+            prompt="Make the hair blue",
+            input_image=Path("input_image.png"),
+            aspect_ratio="1:1",
+            num_inference_steps=30,
+            guidance=2.5,
+            seed=42,
+            output_format="png",
+            output_quality=100,
+            disable_safety_checker=True,
+            lora_weights=None,
+            lora_strength=1.0,
+        )
+        print(f"Compiled in {time.time() - start_time} seconds")
         # self.ae.decode = torch.compile(self.ae.decode, mode="max-autotune")
 
         # Initialize safety checker

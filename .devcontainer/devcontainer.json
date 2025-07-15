@@ -1,0 +1,12 @@
+{
+	"name": "cog-flux-kontext-dev",
+	"image": "cog-flux-kontext",
+	"runArgs": [
+		"--gpus=all"
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": []
+		}
+	}
+} 

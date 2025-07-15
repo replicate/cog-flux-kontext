@@ -4,35 +4,35 @@
 build:
   # set to true if your model requires a GPU
   gpu: true
-  cuda: "12.4"
+  cuda: "12.6"
 
   python_version: "3.11"
 
   system_packages:
-    - "libgl1-mesa-glx"
-    - "libglib2.0-0"
+    - "libgl1"
+    - "libglib2.0-0t64"
 
   python_packages:
     - "numpy<2"
-    - "torch==2.5.1"
-    - "einops==0.8.0"
-    - "fire==0.6.0"
-    - "huggingface-hub==0.24.3"
-    - "safetensors==0.4.3"
-    - "sentencepiece==0.2.0"
-    - "transformers==4.43.3"
-    - "tokenizers==0.19.1"
-    - "protobuf==5.27.2"
-    - "diffusers==0.29.2"
-    - "loguru==0.7.2"
-    - "pybase64==1.4.0"
-    - "pydash==8.0.3"
-    - "opencv-python-headless==4.10.0.84"
+    - "einops"
+    - "fire"
+    - "huggingface-hub"
+    - "safetensors"
+    - "sentencepiece"
+    - "transformers==4.53.2"
+    - "tokenizers==0.21.2"
+    - "protobuf"
+    - "diffusers==0.34.0"
+    - "loguru"
+    - "pybase64"
+    - "pydash"
+    - "opencv-python-headless"
     - "Pillow"
-    - "invisible-watermark==0.2.0"
+    - "invisible-watermark"
 
 
   # commands run after the environment is setup
   run:
     - curl -o /usr/local/bin/pget -L "https://github.com/replicate/pget/releases/download/v0.8.2/pget_linux_x86_64" && chmod +x /usr/local/bin/pget
+    - pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126
 predict: "predict.py:FluxDevKontextPredictor"
