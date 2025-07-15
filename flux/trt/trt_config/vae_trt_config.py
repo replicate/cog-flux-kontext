@@ -17,7 +17,11 @@ import warnings
 from dataclasses import dataclass, field
 from math import ceil
 
-from flux.trt.trt_config.base_trt_config import ModuleName, TRTBaseConfig, register_config
+from flux.trt.trt_config.base_trt_config import (
+    ModuleName,
+    TRTBaseConfig,
+    register_config,
+)
 from flux.util import configs
 
 
@@ -51,18 +55,21 @@ class VAEBaseConfig(TRTBaseConfig):
     ) -> tuple[int, int]:
         self._check_batch(batch_size)
         assert (
-            image_height % self.compression_factor == 0 or image_width % self.compression_factor == 0
-        ), f"Image dimensions must be divisible by compression factor {self.compression_factor}"
+            image_height % self.compression_factor == 0
+            or image_width % self.compression_factor == 0
+        ), (
+            f"Image dimensions must be divisible by compression factor {self.compression_factor}"
+        )
 
         latent_height = self._get_latent_dim(image_height)
         latent_width = self._get_latent_dim(image_width)
 
-        assert (
-            self.min_latent_shape <= latent_height <= self.max_latent_shape
-        ), f"Latent height {latent_height} must be between {self.min_latent_shape} and {self.max_latent_shape}"
-        assert (
-            self.min_latent_shape <= latent_width <= self.max_latent_shape
-        ), f"Latent width {latent_width} must be between {self.min_latent_shape} and {self.max_latent_shape}"
+        assert self.min_latent_shape <= latent_height <= self.max_latent_shape, (
+            f"Latent height {latent_height} must be between {self.min_latent_shape} and {self.max_latent_shape}"
+        )
+        assert self.min_latent_shape <= latent_width <= self.max_latent_shape, (
+            f"Latent width {latent_width} must be between {self.min_latent_shape} and {self.max_latent_shape}"
+        )
         return latent_height, latent_width
 
 
@@ -111,10 +118,18 @@ class VAEDecoderConfig(VAEBaseConfig):
         latent_height = self._get_latent_dim(image_height)
         latent_width = self._get_latent_dim(image_width)
 
-        min_latent_height = latent_height if self.trt_static_shape else self.min_latent_shape
-        max_latent_height = latent_height if self.trt_static_shape else self.max_latent_shape
-        min_latent_width = latent_width if self.trt_static_shape else self.min_latent_shape
-        max_latent_width = latent_width if self.trt_static_shape else self.max_latent_shape
+        min_latent_height = (
+            latent_height if self.trt_static_shape else self.min_latent_shape
+        )
+        max_latent_height = (
+            latent_height if self.trt_static_shape else self.max_latent_shape
+        )
+        min_latent_width = (
+            latent_width if self.trt_static_shape else self.min_latent_shape
+        )
+        max_latent_width = (
+            latent_width if self.trt_static_shape else self.max_latent_shape
+        )
 
         return (
             min_batch,
@@ -139,7 +154,9 @@ class VAEDecoderConfig(VAEBaseConfig):
             image_height is not None and image_width is not None
         ), "If static_shape is True, image_height and image_width must be not None"
 
-        image_height = self.default_image_shape if image_height is None else image_height
+        image_height = (
+            self.default_image_shape if image_height is None else image_height
+        )
         image_width = self.default_image_shape if image_width is None else image_width
 
         latent_height, latent_width = self.check_dims(
@@ -182,7 +199,9 @@ class VAEEncoderConfig(VAEBaseConfig):
     @classmethod
     def from_args(cls, model_name: str, **kwargs):
         if model_name == "flux-dev-kontext" and kwargs["trt_static_shape"]:
-            warnings.warn("Flux-dev-Kontext does not support static shapes for the encoder.")
+            warnings.warn(
+                "Flux-dev-Kontext does not support static shapes for the encoder."
+            )
             kwargs["trt_static_shape"] = False
 
         if model_name == "flux-dev-kontext":
@@ -212,8 +231,12 @@ class VAEEncoderConfig(VAEBaseConfig):
         min_batch = batch_size if self.trt_static_batch else self.min_batch
         max_batch = batch_size if self.trt_static_batch else self.max_batch
 
-        min_image_height = image_height if self.trt_static_shape else self.min_image_shape
-        max_image_height = image_height if self.trt_static_shape else self.max_image_shape
+        min_image_height = (
+            image_height if self.trt_static_shape else self.min_image_shape
+        )
+        max_image_height = (
+            image_height if self.trt_static_shape else self.max_image_shape
+        )
         min_image_width = image_width if self.trt_static_shape else self.min_image_shape
         max_image_width = image_width if self.trt_static_shape else self.max_image_shape
 
@@ -233,15 +256,17 @@ class VAEEncoderConfig(VAEBaseConfig):
         image_width: int | None,
     ):
         if self.model_name == "flux-dev-kontext":
-            assert (
-                not self.trt_static_shape
-            ), "Flux-dev-kontext does not support dynamic shapes for the encoder."
+            assert not self.trt_static_shape, (
+                "Flux-dev-kontext does not support dynamic shapes for the encoder."
+            )
         else:
-            assert isinstance(image_height, int) and isinstance(
-                image_width, int
-            ), "Only Flux-dev-kontext allows None image shape"
+            assert isinstance(image_height, int) and isinstance(image_width, int), (
+                "Only Flux-dev-kontext allows None image shape"
+            )
 
-        image_height = self.default_image_shape if image_height is None else image_height
+        image_height = (
+            self.default_image_shape if image_height is None else image_height
+        )
         image_width = self.default_image_shape if image_width is None else image_width
 
         self.check_dims(

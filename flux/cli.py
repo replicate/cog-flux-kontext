@@ -33,7 +33,9 @@ class SamplingOptions:
 
 
 def parse_prompt(options: SamplingOptions) -> SamplingOptions | None:
-    user_question = "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    user_question = (
+        "Next prompt (write /h for help, /q to quit and leave empty to repeat):\n"
+    )
     usage = (
         "Usage: Either write your prompt directly, leave this field empty "
         "to repeat the prompt or write a command starting with a slash:\n"
@@ -150,11 +152,13 @@ def main(
         additional_prompts = prompt[1:]
         prompt = prompt[0]
 
-    assert not (
-        (additional_prompts is not None) and loop
-    ), "Do not provide additional prompts and set loop to True"
+    assert not ((additional_prompts is not None) and loop), (
+        "Do not provide additional prompts and set loop to True"
+    )
 
-    nsfw_classifier = pipeline("image-classification", model="Falconsai/nsfw_image_detection", device=device)
+    nsfw_classifier = pipeline(
+        "image-classification", model="Falconsai/nsfw_image_detection", device=device
+    )
 
     if name not in configs:
         available = ", ".join(configs.keys())
@@ -173,7 +177,11 @@ def main(
         os.makedirs(output_dir)
         idx = 0
     else:
-        fns = [fn for fn in iglob(output_name.format(idx="*")) if re.search(r"img_[0-9]+\.jpg$", fn)]
+        fns = [
+            fn
+            for fn in iglob(output_name.format(idx="*"))
+            if re.search(r"img_[0-9]+\.jpg$", fn)
+        ]
         if len(fns) > 0:
             idx = max(int(fn.split("_")[-1].split(".")[0]) for fn in fns) + 1
         else:
@@ -214,7 +222,9 @@ def main(
         )
 
         ae = engines[ModuleName.VAE].to(device="cpu" if offload else torch_device)
-        model = engines[ModuleName.TRANSFORMER].to(device="cpu" if offload else torch_device)
+        model = engines[ModuleName.TRANSFORMER].to(
+            device="cpu" if offload else torch_device
+        )
         clip = engines[ModuleName.CLIP].to(torch_device)
         t5 = engines[ModuleName.T5].to(device="cpu" if offload else torch_device)
 
@@ -252,7 +262,9 @@ def main(
             torch.cuda.empty_cache()
             t5, clip = t5.to(torch_device), clip.to(torch_device)
         inp = prepare(t5, clip, x, prompt=opts.prompt)
-        timesteps = get_schedule(opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell"))
+        timesteps = get_schedule(
+            opts.num_steps, inp["img"].shape[1], shift=(name != "flux-schnell")
+        )
 
         # offload TEs to CPU, load model to gpu
         if offload:
@@ -282,7 +294,14 @@ def main(
         print(f"Done in {t1 - t0:.1f}s. Saving {fn}")
 
         idx = save_image(
-            nsfw_classifier, name, output_name, idx, x, add_sampling_metadata, prompt, track_usage=track_usage
+            nsfw_classifier,
+            name,
+            output_name,
+            idx,
+            x,
+            add_sampling_metadata,
+            prompt,
+            track_usage=track_usage,
         )
 
         if loop:

@@ -5,11 +5,7 @@ from PIL import Image
 from cog import BasePredictor, Path, Input
 
 from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
-from flux.util import (
-    configs,
-    load_clip,
-    load_t5
-)
+from flux.util import configs, load_clip, load_t5
 from flux.model import Flux
 from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
@@ -24,12 +20,15 @@ KONTEXT_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-l
 KONTEXT_WEIGHTS_PATH = "./models/kontext/kontext-dev.sft"
 AE_WEIGHTS_URL = "https://weights.replicate.delivery/default/black-forest-labs/FLUX.1-dev/safetensors/ae.safetensors"
 AE_WEIGHTS_PATH = "./models/flux-dev/ae.safetensors"
-T5_WEIGHTS_URL = "https://weights.replicate.delivery/default/official-models/flux/t5/t5-v1_1-xxl.tar"
+T5_WEIGHTS_URL = (
+    "https://weights.replicate.delivery/default/official-models/flux/t5/t5-v1_1-xxl.tar"
+)
 T5_WEIGHTS_PATH = "./models/t5"
 CLIP_URL = "https://weights.replicate.delivery/default/official-models/flux/clip/clip-vit-large-patch14.tar"
 CLIP_PATH = "./models/clip"
 
 TORCH_COMPILE_CACHE = "./torch-compile-cache-flux-dev-kontext.bin"
+
 
 class FluxDevKontextPredictor(BasePredictor):
     """
@@ -78,7 +77,6 @@ class FluxDevKontextPredictor(BasePredictor):
         )
         print(f"Compiled in {time.time() - start_time} seconds")
         print("FluxDevKontextPredictor setup complete")
-
 
     def predict(
         self,
@@ -151,11 +149,15 @@ class FluxDevKontextPredictor(BasePredictor):
                 seed=seed,
                 device=self.device,
             )
-            
+
             if go_fast:
-                compute_step_map = generate_compute_step_map("go really fast", num_inference_steps)
+                compute_step_map = generate_compute_step_map(
+                    "go really fast", num_inference_steps
+                )
             else:
-                compute_step_map = generate_compute_step_map("none", num_inference_steps)
+                compute_step_map = generate_compute_step_map(
+                    "none", num_inference_steps
+                )
 
             # Remove the original conditioning image from memory to save space
             inp.pop("img_cond_orig", None)
@@ -168,7 +170,13 @@ class FluxDevKontextPredictor(BasePredictor):
             )
 
             # Generate image
-            x = denoise(self.model, **inp, timesteps=timesteps, guidance=guidance, compute_step_map=compute_step_map)
+            x = denoise(
+                self.model,
+                **inp,
+                timesteps=timesteps,
+                guidance=guidance,
+                compute_step_map=compute_step_map,
+            )
 
             # Decode latents to pixel space
             x = unpack(x.float(), final_height, final_width)
@@ -231,7 +239,7 @@ def download_model_weights():
         print("T5 weights downloaded successfully")
     else:
         print("T5 weights already exist")
-        
+
     if not os.path.exists(CLIP_PATH):
         print("CLIP weights not found, downloading...")
         download_weights(CLIP_URL, Path(CLIP_PATH))

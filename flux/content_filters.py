@@ -25,7 +25,9 @@ Critical Requirements:
 """.strip()
 
 
-PROMPT_IMAGE_INTEGRITY_FOLLOW_UP = "Does this image have copyright concerns or includes public figures?"
+PROMPT_IMAGE_INTEGRITY_FOLLOW_UP = (
+    "Does this image have copyright concerns or includes public figures?"
+)
 
 PROMPT_TEXT_INTEGRITY = """
 Task: Analyze a text prompt to identify potential copyright concerns or requests to depict living public figures.
@@ -66,12 +68,16 @@ class PixtralContentFilter(torch.nn.Module):
 
         model_id = "mistral-community/pixtral-12b"
         self.processor = AutoProcessor.from_pretrained(model_id)
-        self.model = LlavaForConditionalGeneration.from_pretrained(model_id, device_map=device)
+        self.model = LlavaForConditionalGeneration.from_pretrained(
+            model_id, device_map=device
+        )
 
         self.yes_token, self.no_token = self.processor.tokenizer.encode(["yes", "no"])
 
         self.nsfw_classifier = pipeline(
-            "image-classification", model="Falconsai/nsfw_image_detection", device=device
+            "image-classification",
+            model="Falconsai/nsfw_image_detection",
+            device=device,
         )
         self.nsfw_threshold = nsfw_threshold
 
@@ -96,7 +102,9 @@ class PixtralContentFilter(torch.nn.Module):
         elif isinstance(image, str):
             image = Image.open(image)
 
-        classification = next(c for c in self.nsfw_classifier(image) if c["label"] == "nsfw")
+        classification = next(
+            c for c in self.nsfw_classifier(image) if c["label"] == "nsfw"
+        )
         if classification["score"] > self.nsfw_threshold:
             return True
 

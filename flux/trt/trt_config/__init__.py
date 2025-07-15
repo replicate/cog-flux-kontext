@@ -14,7 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from flux.trt.trt_config.base_trt_config import ModuleName, TRTBaseConfig, get_config, register_config
+from flux.trt.trt_config.base_trt_config import (
+    ModuleName,
+    TRTBaseConfig,
+    get_config,
+    register_config,
+)
 from flux.trt.trt_config.clip_trt_config import ClipConfig
 from flux.trt.trt_config.t5_trt_config import T5Config
 from flux.trt.trt_config.transformer_trt_config import TransformerConfig

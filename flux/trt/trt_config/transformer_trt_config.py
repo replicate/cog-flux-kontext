@@ -20,7 +20,11 @@ from math import ceil
 
 from huggingface_hub import snapshot_download
 
-from flux.trt.trt_config.base_trt_config import ModuleName, TRTBaseConfig, register_config
+from flux.trt.trt_config.base_trt_config import (
+    ModuleName,
+    TRTBaseConfig,
+    register_config,
+)
 from flux.util import PREFERED_KONTEXT_RESOLUTIONS, configs
 
 
@@ -60,7 +64,9 @@ class TransformerConfig(TRTBaseConfig):
         **kwargs,
     ):
         if model_name == "flux-dev-kontext" and kwargs["trt_static_shape"]:
-            warnings.warn("Flux-dev-Kontext does not support static shapes for the encoder.")
+            warnings.warn(
+                "Flux-dev-Kontext does not support static shapes for the encoder."
+            )
             kwargs["trt_static_shape"] = False
 
         if model_name == "flux-dev-kontext":
@@ -91,7 +97,9 @@ class TransformerConfig(TRTBaseConfig):
         repo_id = self._get_repo_id(self.model_name)
         typed_model_path = os.path.join(f"{self.module_name.value}.opt", self.precision)
 
-        snapshot_path = snapshot_download(repo_id, allow_patterns=[f"{typed_model_path}/*"])
+        snapshot_path = snapshot_download(
+            repo_id, allow_patterns=[f"{typed_model_path}/*"]
+        )
         onnx_model_path = os.path.join(snapshot_path, typed_model_path, "model.onnx")
         return onnx_model_path
 
@@ -186,8 +194,12 @@ class TransformerConfig(TRTBaseConfig):
         )
 
         # static-shape affects only the target image size
-        min_latent_dim = min_latent_dim if self.trt_static_shape else self.min_latent_dim
-        max_latent_dim = max_latent_dim if self.trt_static_shape else self.max_latent_dim
+        min_latent_dim = (
+            min_latent_dim if self.trt_static_shape else self.min_latent_dim
+        )
+        max_latent_dim = (
+            max_latent_dim if self.trt_static_shape else self.max_latent_dim
+        )
 
         return (min_batch, max_batch, min_latent_dim, max_latent_dim)
 
@@ -199,8 +211,11 @@ class TransformerConfig(TRTBaseConfig):
     ) -> int:
         self._check_batch(batch_size)
         assert (
-            image_height % self.compression_factor == 0 or image_width % self.compression_factor == 0
-        ), f"Image dimensions must be divisible by compression factor {self.compression_factor}"
+            image_height % self.compression_factor == 0
+            or image_width % self.compression_factor == 0
+        ), (
+            f"Image dimensions must be divisible by compression factor {self.compression_factor}"
+        )
 
         latent_dim = self._get_context_dim(
             image_height=image_height,
@@ -213,7 +228,9 @@ class TransformerConfig(TRTBaseConfig):
             # as target image shape
             latent_dim = 2 * latent_dim
 
-        assert self.min_latent_dim <= latent_dim <= self.max_latent_dim, "Image resolution out of boundaries."
+        assert self.min_latent_dim <= latent_dim <= self.max_latent_dim, (
+            "Image resolution out of boundaries."
+        )
         return latent_dim
 
     def get_input_profile(
@@ -223,13 +240,17 @@ class TransformerConfig(TRTBaseConfig):
         image_width: int | None,
     ) -> dict[str, list[tuple]]:
         if self.model_name == "flux-dev-kontext":
-            assert not self.trt_static_shape, "If Flux-dev-kontext then static_shape must be False."
+            assert not self.trt_static_shape, (
+                "If Flux-dev-kontext then static_shape must be False."
+            )
         else:
-            assert isinstance(image_height, int) and isinstance(
-                image_width, int
-            ), "Only Flux-dev-kontext allows None image shape"
+            assert isinstance(image_height, int) and isinstance(image_width, int), (
+                "Only Flux-dev-kontext allows None image shape"
+            )
 
-        image_height = self.default_image_shape if image_height is None else image_height
+        image_height = (
+            self.default_image_shape if image_height is None else image_height
+        )
         image_width = self.default_image_shape if image_width is None else image_width
 
         opt_latent_dim = self.check_dims(

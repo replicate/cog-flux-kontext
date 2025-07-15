@@ -43,7 +43,9 @@ class TransformerEngine(Engine):
         "latent": "latent",
     }
 
-    def __init__(self, trt_config: TransformerConfig, stream: torch.cuda.Stream, **kwargs):
+    def __init__(
+        self, trt_config: TransformerConfig, stream: torch.cuda.Stream, **kwargs
+    ):
         super().__init__(trt_config=trt_config, stream=stream, **kwargs)
 
     @property

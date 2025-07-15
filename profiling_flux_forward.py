@@ -1,7 +1,4 @@
-import time
-
 import torch
-from torch import nn
 
 # Import the model definition
 from flux.model import Flux, FluxParams
@@ -16,7 +13,7 @@ def benchmark_flux_forward():
     device = torch.device("cuda")
     dtype = torch.bfloat16
 
-    params=FluxParams(
+    params = FluxParams(
         in_channels=64,
         out_channels=64,
         vec_in_dim=768,
@@ -57,23 +54,27 @@ def benchmark_flux_forward():
     # Even though guidance is unused (guidance_embed=False), we create it to
     # match the reference shapes so that printing inside `forward` succeeds.
     guidance = torch.rand(1, device=device, dtype=dtype) * 1000.0
-    
+
     with torch.inference_mode():
         for _ in range(10):
             model(img, img_ids, txt, txt_ids, timesteps, y, guidance)
 
         with torch.profiler.profile(
-            activities=[torch.profiler.ProfilerActivity.CPU, torch.profiler.ProfilerActivity.CUDA],
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA,
+            ],
             record_shapes=True,
         ) as prof:
             model(img, img_ids, txt, txt_ids, timesteps, y, guidance)
 
         # Print a succinct table sorted by self CUDA time
         print(
-            prof.key_averages(group_by_input_shape=True)
-            .table(sort_by="self_cuda_time_total", row_limit=20)
+            prof.key_averages(group_by_input_shape=True).table(
+                sort_by="self_cuda_time_total", row_limit=20
+            )
         )
 
 
 if __name__ == "__main__":
-    benchmark_flux_forward() 
+    benchmark_flux_forward()

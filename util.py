@@ -2,6 +2,7 @@ from contextlib import contextmanager
 import time
 import torch
 
+
 @contextmanager
 def print_timing(operation_name: str):
     """Context manager to time and print the execution time of a block of code.
@@ -33,15 +34,16 @@ def get_sequence_length(w, h):
     latent_width = w // 8
     total_latent_size = latent_height * latent_width * 16
     assert total_latent_size % 64 == 0
-    
+
     # and then does latent_image.reshape(-1, 64) to create an embedding dim of 64
     image_seq_len = total_latent_size // 64
-    
+
     # img (the tensor that is being denoised) and img_cond (the tensor that provides conditioning)
     # are preprocessed the same way and then concatenated
     image_seq_len *= 2
     txt_seq_len = 512
     return image_seq_len, txt_seq_len
+
 
 def warm_up_model(h, w, model, device):
     in_channels = model.params.in_channels
@@ -51,16 +53,26 @@ def warm_up_model(h, w, model, device):
     image_id_dim = 3
     image_seq_len, txt_seq_len = get_sequence_length(w, h)
 
-    img_input = torch.rand(batch_size, image_seq_len, in_channels, device=device, dtype=torch.bfloat16)
-    img_input_ids = torch.rand(batch_size, image_seq_len, image_id_dim, device=device, dtype=torch.float32) * 73.0
-    txt = torch.rand(batch_size, txt_seq_len, context_in_dim, device=device, dtype=torch.bfloat16)
-    txt_ids = torch.zeros(batch_size, txt_seq_len, image_id_dim, device=device, dtype=torch.float32)
+    img_input = torch.rand(
+        batch_size, image_seq_len, in_channels, device=device, dtype=torch.bfloat16
+    )
+    img_input_ids = (
+        torch.rand(
+            batch_size, image_seq_len, image_id_dim, device=device, dtype=torch.float32
+        )
+        * 73.0
+    )
+    txt = torch.rand(
+        batch_size, txt_seq_len, context_in_dim, device=device, dtype=torch.bfloat16
+    )
+    txt_ids = torch.zeros(
+        batch_size, txt_seq_len, image_id_dim, device=device, dtype=torch.float32
+    )
     vec = torch.rand(1, 768, device=device, dtype=torch.bfloat16)
     t_vec = torch.tensor([0.82421875], device=device, dtype=torch.bfloat16)
     guidance_vec = torch.tensor([3.5], device=device, dtype=torch.bfloat16)
 
     with torch.no_grad():
-
         _ = model(
             img=img_input,
             img_ids=img_input_ids,
@@ -71,7 +83,7 @@ def warm_up_model(h, w, model, device):
             guidance=guidance_vec,
         )
 
-    
+
 def generate_compute_step_map(acceleration_level: str, num_inference_steps: int):
     if acceleration_level == "none":
         return [True] * num_inference_steps
@@ -89,7 +101,7 @@ def generate_compute_step_map(acceleration_level: str, num_inference_steps: int)
         compute_step_map[:3] = [True] * 3
         compute_step_map[-3:] = [True] * 3
         return compute_step_map
-    
+
     elif acceleration_level == "go really really fast":
         # compute first 2 steps, and last 2 steps, and all steps in between alternate between computing full once and approximating twice
         k = [False, True, False, False]
@@ -97,7 +109,6 @@ def generate_compute_step_map(acceleration_level: str, num_inference_steps: int)
         compute_step_map[:2] = [True] * 2
         compute_step_map[-2:] = [True] * 2
         return compute_step_map
-    
+
     else:
         raise ValueError(f"Invalid acceleration level: {acceleration_level}")
-
