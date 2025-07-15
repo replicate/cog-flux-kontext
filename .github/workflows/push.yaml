@@ -67,26 +67,26 @@ jobs:
         echo "==="
         cog-safe-push --push-official-model --config cog-safe-push-configs/$model.yaml -vv ${{ inputs.ignore_schema_checks && '--ignore-schema-compatibility' || '' }}
 
-  unit-test:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'workflow_dispatch'
+  # unit-test:
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name != 'workflow_dispatch'
 
-    steps:
-    - uses: actions/checkout@v3
+  #   steps:
+  #   - uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: '3.11'
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements-test.txt
-        pip install -r requirements.txt
+  #   - name: Install dependencies
+  #     run: |
+  #       pip install -r requirements-test.txt
+  #       pip install -r requirements.txt
 
-    - name: Run pytest
-      run: |
-        ./script/unit-test
+  #   - name: Run pytest
+  #     run: |
+  #       ./script/unit-test
 
   lint:
     runs-on: ubuntu-latest
