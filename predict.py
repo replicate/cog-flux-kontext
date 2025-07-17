@@ -15,7 +15,6 @@ from flux.model import Flux
 from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
-from util import print_timing
 from weights import WeightsDownloadCache, download_weights_pget
 
 # Environment setup
@@ -79,7 +78,7 @@ class FluxDevKontextPredictor(BasePredictor):
             output_format="png",
             output_quality=100,
             disable_safety_checker=True,
-            lora_weights=None,
+            replicate_weights=None,
             lora_strength=1.0,
         )
         print(f"Compiled in {time.time() - start_time} seconds")
@@ -166,8 +165,8 @@ class FluxDevKontextPredictor(BasePredictor):
         disable_safety_checker: bool = Input(
             description="Disable NSFW safety checker", default=False
         ),
-        lora_weights: str = Input(
-            description="Path to the lora weights", default=None
+        replicate_weights: str = Input(
+            description="Path to the lora weights"
         ),
         lora_strength: float = Input(
             description="Strength of the lora", default=1.0
@@ -178,9 +177,9 @@ class FluxDevKontextPredictor(BasePredictor):
         """
 
         # handle loras 
-        self.handle_lora(lora_weights, lora_strength)
+        self.handle_lora(replicate_weights, lora_strength)
 
-        with torch.inference_mode(), print_timing("generate image"):
+        with torch.inference_mode():
             seed = prepare_seed(seed)
 
             # Prepare target dimensions from aspect ratio and megapixels
@@ -190,19 +189,18 @@ class FluxDevKontextPredictor(BasePredictor):
             print(f"Target dimensions: {target_width}x{target_height}")
 
             # Prepare input for kontext sampling
-            with print_timing("prepare input"):
-                inp, final_height, final_width = prepare_kontext(
-                    t5=self.t5,
-                    clip=self.clip,
-                    prompt=prompt,
-                    ae=self.ae,
-                    img_cond_path=str(input_image),
-                    target_width=target_width,
-                    target_height=target_height,
-                    bs=1,
-                    seed=seed,
-                    device=self.device,
-                )
+            inp, final_height, final_width = prepare_kontext(
+                t5=self.t5,
+                clip=self.clip,
+                prompt=prompt,
+                ae=self.ae,
+                img_cond_path=str(input_image),
+                target_width=target_width,
+                target_height=target_height,
+                bs=1,
+                seed=seed,
+                device=self.device,
+            )
 
             # Remove the original conditioning image from memory to save space
             inp.pop("img_cond_orig", None)
@@ -215,30 +213,26 @@ class FluxDevKontextPredictor(BasePredictor):
             )
 
             # Generate image
-            with print_timing("denoise"):
-                x = denoise(self.model, **inp, timesteps=timesteps, guidance=guidance)
+            x = denoise(self.model, **inp, timesteps=timesteps, guidance=guidance)
 
             # Decode latents to pixel space
-            with print_timing("decode"):
-                x = unpack(x.float(), final_height, final_width)
-                with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
-                    x = self.ae.decode(x)
+            x = unpack(x.float(), final_height, final_width)
+            with torch.autocast(device_type=self.device.type, dtype=torch.bfloat16):
+                x = self.ae.decode(x)
 
-            with print_timing("convert to image"):
-                x = x.clamp(-1, 1)
-                x = (x + 1) / 2
-                x = (x.permute(0, 2, 3, 1) * 255).to(torch.uint8).cpu().numpy()
-                image = Image.fromarray(x[0])
+            x = x.clamp(-1, 1)
+            x = (x + 1) / 2
+            x = (x.permute(0, 2, 3, 1) * 255).to(torch.uint8).cpu().numpy()
+            image = Image.fromarray(x[0])
 
             # Apply safety checking
             if not disable_safety_checker:
-                with print_timing("Running safety checker"):
-                    images = self.safety_checker.filter_images([image])
-                    if not images:
-                        raise Exception(
-                            "Generated image contained NSFW content. Try running it again with a different prompt."
-                        )
-                    image = images[0]
+                images = self.safety_checker.filter_images([image])
+                if not images:
+                    raise Exception(
+                        "Generated image contained NSFW content. Try running it again with a different prompt."
+                    )
+                image = images[0]
 
             # Save image
             output_path = f"output.{output_format}"

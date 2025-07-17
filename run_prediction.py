@@ -26,9 +26,8 @@ def main():
         "output_format": "png",
         "output_quality": 80,
         "disable_safety_checker": True,
-        # "lora_weights": "https://replicate.delivery/xezq/89qeqISCarVyDaLJRVCzmd12Woh7k4jdTmjCg7AHN19o56fUA/flux-lora.tar",
-        "lora_weights": None, 
-        "lora_strength": 1.0,
+        "replicate_weights": "https://replicate.delivery/xezq/89qeqISCarVyDaLJRVCzmd12Woh7k4jdTmjCg7AHN19o56fUA/flux-lora.tar",
+         "lora_strength": 1.0,
     }
 
     # Call predict
