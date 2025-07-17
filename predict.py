@@ -109,13 +109,13 @@ class FluxDevKontextPredictor(BasePredictor):
                 self.cur_lora = None
                 self.cur_strength = -10
             return
-        
+
         lora_weights = str(lora_weights)
         lora_weights = self.cache.ensure(lora_weights)
         if lora_weights == self.cur_lora and lora_strength == self.cur_strength:
             print("Lora already loaded")
             return
-        
+
         unload_loras(self.model)
         if lora_weights is not None:
             load_lora(self.model, lora_weights, lora_strength, store_clones=True)
@@ -166,7 +166,8 @@ class FluxDevKontextPredictor(BasePredictor):
             description="Disable NSFW safety checker", default=False
         ),
         replicate_weights: str = Input(
-            description="Path to the lora weights"
+            description="Path to the lora weights",
+            default=None,
         ),
         lora_strength: float = Input(
             description="Strength of the lora", default=1.0
@@ -176,7 +177,7 @@ class FluxDevKontextPredictor(BasePredictor):
         Generate an image based on the text prompt and conditioning image using FLUX.1 Kontext
         """
 
-        # handle loras 
+        # handle loras
         self.handle_lora(replicate_weights, lora_strength)
 
         with torch.inference_mode():
