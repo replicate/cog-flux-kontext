@@ -78,7 +78,7 @@ class FluxDevKontextPredictor(BasePredictor):
             output_format="png",
             output_quality=100,
             disable_safety_checker=True,
-            replicate_weights=None,
+            lora_weights=None,
             lora_strength=1.0,
         )
         print(f"Compiled in {time.time() - start_time} seconds")
@@ -165,7 +165,7 @@ class FluxDevKontextPredictor(BasePredictor):
         disable_safety_checker: bool = Input(
             description="Disable NSFW safety checker", default=False
         ),
-        replicate_weights: str = Input(
+        lora_weights: str = Input(
             description="Path to the lora weights",
             default=None,
         ),
@@ -178,7 +178,7 @@ class FluxDevKontextPredictor(BasePredictor):
         """
 
         # handle loras
-        self.handle_lora(replicate_weights, lora_strength)
+        self.handle_lora(lora_weights, lora_strength)
 
         with torch.inference_mode():
             seed = prepare_seed(seed)
