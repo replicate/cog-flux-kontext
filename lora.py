@@ -54,6 +54,13 @@ def convert_if_lora_exists(new_state_dict, state_dict, lora_name, flux_layer_nam
     else:
         return new_state_dict, state_dict
 
+def _convert_fal_flux_lora(state_dict):
+    new_state_dict = {}
+    for key, value in state_dict.items():
+        # Remove the base_model.model. prefix
+        new_key = key.replace('base_model.model.', '')
+        new_state_dict[new_key] = value
+    return new_state_dict
 
 def convert_diffusers_to_flux_transformer_checkpoint(
     diffusers_state_dict,
@@ -503,13 +510,15 @@ def convert_lora_weights(lora_path: str | Path, has_guidance: bool):
     print(f"Loading LoRA weights for {lora_path}")
     lora_weights = load_file(lora_path, device="cuda")
     is_kohya = any(".lora_down.weight" in k for k in lora_weights)
-
-    # converting to diffusers to convert from diffusers is a bit circuitous at the moment but it works 
-    if is_kohya:
-        lora_weights = _convert_kohya_flux_lora_to_diffusers(lora_weights)
-
     is_xlabs = any("processor" in k for k in lora_weights)
-    if is_xlabs:
+    is_fal = all(k.startswith("base_model.model") for k in lora_weights)\
+
+    
+    if is_fal:
+        lora_weights = _convert_fal_flux_lora(lora_weights)
+    elif is_kohya:
+        lora_weights = _convert_kohya_flux_lora_to_diffusers(lora_weights)
+    elif is_xlabs:
         lora_weights = _convert_xlabs_flux_lora_to_diffusers(lora_weights)
 
     check_if_starts_with_transformer = [
@@ -604,6 +613,17 @@ def restore_base_weights(model: Flux):
     model.clones = {}
     return
 
+def lora_weight_match(model_weight: torch.Tensor, lora_weights: tuple[torch.Tensor, torch.Tensor]):
+    lora_m = lora_weights[1].shape[0] # shape (M, 16)
+    lora_n = lora_weights[0].shape[1] # shape (16, N)
+
+    assert lora_weights[0].shape[0] == lora_weights[1].shape[1], "Lora weights are not compatible"
+
+    if model_weight.shape[0] != lora_m or model_weight.shape[1] != lora_n:
+        return False
+    return True
+
+
 @torch.inference_mode()
 def apply_lora_to_model_and_optionally_store_clones(model: Flux, lora_weights: dict, lora_scale: float = 1.0, store_clones: bool = False):
     if store_clones and not hasattr(model, "clones"):
@@ -644,20 +664,26 @@ def apply_lora_to_model_and_optionally_store_clones(model: Flux, lora_weights: d
 
         assert weight_f16.dtype == torch.bfloat16, f"{key} is {weight_f16.dtype}, not torch.bfloat16"
 
-        if ".linear1" in key:
-            weight_f16 = apply_linear1_lora_weight_to_module(
-                weight_f16, lora_sd, lora_scale=lora_scale
-            )
-
-        elif "_attn.qkv" in key:
-            weight_f16 = apply_attn_qkv_lora_weight_to_module(
-                weight_f16, lora_sd, lora_scale=lora_scale
-            )
-
-        else:
+        
+        
+        if lora_weight_match(weight_f16, lora_sd):
+            print(f"lora weight match {key}")
             weight_f16 = apply_lora_weight_to_module(
                 weight_f16, lora_sd, lora_scale=lora_scale
             )
+        else:
+            if ".linear1" in key:
+                print(f"applying linear1 {key}")
+                weight_f16 = apply_linear1_lora_weight_to_module(
+                    weight_f16, lora_sd, lora_scale=lora_scale
+                )
+
+            elif "_attn.qkv" in key:
+                print(f"applying attn qkv {key}")
+                weight_f16 = apply_attn_qkv_lora_weight_to_module(
+                    weight_f16, lora_sd, lora_scale=lora_scale
+                )
+
 
         assert weight_f16.dtype == torch.bfloat16, f"{key} is {weight_f16.dtype} after applying lora, not torch.bfloat16"
 
@@ -684,8 +710,12 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
 
         # scale weight by alpha and dim
         rank = down_weight.shape[0]
-        alpha = sds_sd.pop(sds_key + ".alpha").item()  # alpha is scalar
-        scale = alpha / rank  # LoRA is scaled by 'alpha / rank' in forward pass, so we need to scale it back here
+        
+        if sds_key + ".alpha" in sds_sd:
+            alpha = sds_sd.pop(sds_key + ".alpha").item()  # alpha is scalar
+            scale = alpha / rank  # LoRA is scaled by 'alpha / rank' in forward pass, so we need to scale it back here
+        else:
+            scale = 1.0
 
         # calculate scale_down and scale_up to keep the same value. if scale is 4, scale_down is 2 and scale_up is 2
         scale_down = scale
@@ -705,8 +735,11 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
         sd_lora_rank = down_weight.shape[0]
 
         # scale weight by alpha and dim
-        alpha = sds_sd.pop(sds_key + ".alpha")
-        scale = alpha / sd_lora_rank
+        if sds_key + ".alpha" in sds_sd:
+            alpha = sds_sd.pop(sds_key + ".alpha")
+            scale = alpha / sd_lora_rank
+        else:
+            scale = 1.0
 
         # calculate scale_down and scale_up
         scale_down = scale
@@ -862,8 +895,8 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
         remaining_keys = list(sds_sd.keys())
         te_state_dict = {}
         if remaining_keys:
-            if not all(k.startswith("lora_te1") for k in remaining_keys):
-                raise ValueError(f"Incompatible keys detected: \n\n {', '.join(remaining_keys)}")
+            # if not all(k.startswith("lora_te1") for k in remaining_keys):
+            #     raise ValueError(f"Incompatible keys detected: \n\n {', '.join(remaining_keys)}")
             for key in remaining_keys:
                 if not key.endswith("lora_down.weight"):
                     continue

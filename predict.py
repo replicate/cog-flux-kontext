@@ -66,22 +66,22 @@ class FluxDevKontextPredictor(BasePredictor):
         self.cur_strength = -10
         # Compile models for faster execution
         # print("Compiling models with torch.compile...")
-        self.model = torch.compile(self.model, dynamic=True)
-        start_time = time.time()
-        self.predict(
-            prompt="Make the hair blue",
-            input_image=Path("input_image.png"),
-            aspect_ratio="1:1",
-            num_inference_steps=30,
-            guidance=2.5,
-            seed=42,
-            output_format="png",
-            output_quality=100,
-            disable_safety_checker=True,
-            lora_weights=None,
-            lora_strength=1.0,
-        )
-        print(f"Compiled in {time.time() - start_time} seconds")
+        # self.model = torch.compile(self.model, dynamic=True)
+        # start_time = time.time()
+        # self.predict(
+        #     prompt="Make the hair blue",
+        #     input_image=Path("input_image.png"),
+        #     aspect_ratio="1:1",
+        #     num_inference_steps=30,
+        #     guidance=2.5,
+        #     seed=42,
+        #     output_format="png",
+        #     output_quality=100,
+        #     disable_safety_checker=True,
+        #     lora_weights=None,
+        #     lora_strength=1.0,
+        # )
+        # print(f"Compiled in {time.time() - start_time} seconds")
         # self.ae.decode = torch.compile(self.ae.decode, mode="max-autotune")
 
         # Initialize safety checker
@@ -131,6 +131,13 @@ class FluxDevKontextPredictor(BasePredictor):
         input_image: Path = Input(
             description="Image to use as reference. Must be jpeg, png, gif, or webp.",
         ),
+        lora_weights: str = Input(
+            description="Path to the lora weights",
+            default=None,
+        ),
+        lora_strength: float = Input(
+            description="Strength of the lora", default=1.0
+        ),
         aspect_ratio: str = Input(
             description="Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image.",
             choices=list(ASPECT_RATIOS.keys()),
@@ -164,14 +171,7 @@ class FluxDevKontextPredictor(BasePredictor):
         ),
         disable_safety_checker: bool = Input(
             description="Disable NSFW safety checker", default=False
-        ),
-        lora_weights: str = Input(
-            description="Path to the lora weights",
-            default=None,
-        ),
-        lora_strength: float = Input(
-            description="Strength of the lora", default=1.0
-        ),
+        )
     ) -> Path:
         """
         Generate an image based on the text prompt and conditioning image using FLUX.1 Kontext
