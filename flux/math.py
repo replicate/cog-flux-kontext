@@ -2,11 +2,18 @@ import torch
 from einops import rearrange
 from torch import Tensor
 
+from torch.nn.attention import SDPBackend, sdpa_kernel
+
 
 def attention(q: Tensor, k: Tensor, v: Tensor, pe: Tensor) -> Tensor:
     q, k = apply_rope(q, k, pe)
 
-    x = torch.nn.functional.scaled_dot_product_attention(q, k, v)
+    q = q.contiguous()
+    k = k.contiguous()
+    v = v.contiguous()
+
+    with sdpa_kernel(backends=[SDPBackend.CUDNN_ATTENTION]):
+        x = torch.nn.functional.scaled_dot_product_attention(q, k, v)
     x = rearrange(x, "B H L D -> B L (H D)")
 
     return x
@@ -17,7 +24,9 @@ def rope(pos: Tensor, dim: int, theta: int) -> Tensor:
     scale = torch.arange(0, dim, 2, dtype=pos.dtype, device=pos.device) / dim
     omega = 1.0 / (theta**scale)
     out = torch.einsum("...n,d->...nd", pos, omega)
-    out = torch.stack([torch.cos(out), -torch.sin(out), torch.sin(out), torch.cos(out)], dim=-1)
+    out = torch.stack(
+        [torch.cos(out), -torch.sin(out), torch.sin(out), torch.cos(out)], dim=-1
+    )
     out = rearrange(out, "b n d (i j) -> b n d i j", i=2, j=2)
     return out.float()
 

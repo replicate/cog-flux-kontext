@@ -2,8 +2,9 @@ import os
 from lora import load_lora, unload_loras
 import torch
 from PIL import Image
-from cog import BasePredictor, Path, Input
+from cog import BasePredictor, Path, Input, ExperimentalFeatureWarning, current_scope
 import time
+import warnings
 
 from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
 from flux.util import (
@@ -16,6 +17,10 @@ from flux.modules.autoencoder import AutoEncoder
 from safetensors.torch import load_file as load_sft
 from safety_checker import SafetyChecker
 from weights import WeightsDownloadCache, download_weights_pget
+from util import generate_compute_step_map
+
+# Suppress experimental feature warnings
+warnings.filterwarnings("ignore", category=ExperimentalFeatureWarning)
 
 # Environment setup
 os.environ["TORCHINDUCTOR_CACHE_DIR"] = "/tmp/torch-inductor-cache-kontext"
@@ -66,22 +71,23 @@ class FluxDevKontextPredictor(BasePredictor):
         self.cur_strength = -10
         # Compile models for faster execution
         # print("Compiling models with torch.compile...")
-        # self.model = torch.compile(self.model, dynamic=True)
-        # start_time = time.time()
-        # self.predict(
-        #     prompt="Make the hair blue",
-        #     input_image=Path("input_image.png"),
-        #     aspect_ratio="1:1",
-        #     num_inference_steps=30,
-        #     guidance=2.5,
-        #     seed=42,
-        #     output_format="png",
-        #     output_quality=100,
-        #     disable_safety_checker=True,
-        #     lora_weights=None,
-        #     lora_strength=1.0,
-        # )
-        # print(f"Compiled in {time.time() - start_time} seconds")
+        self.model = torch.compile(self.model, dynamic=True)
+        start_time = time.time()
+
+        self.predict(
+            prompt="Make the hair blue",
+            input_image=Path("input_image.png"),
+            aspect_ratio="1:1",
+            num_inference_steps=30,
+            guidance=2.5,
+            seed=42,
+            output_format="png",
+            output_quality=100,
+            disable_safety_checker=True,
+            lora_weights=None,
+            lora_strength=1.0,
+        )
+        print(f"Compiled in {time.time() - start_time} seconds")
         # self.ae.decode = torch.compile(self.ae.decode, mode="max-autotune")
 
         # Initialize safety checker
@@ -171,7 +177,11 @@ class FluxDevKontextPredictor(BasePredictor):
         ),
         disable_safety_checker: bool = Input(
             description="Disable NSFW safety checker", default=False
-        )
+        ),
+        go_fast: bool = Input(
+            description="Make the model go fast, output quality may be slightly degraded for more difficult prompts",
+            default=True,
+        ),
     ) -> Path:
         """
         Generate an image based on the text prompt and conditioning image using FLUX.1 Kontext
@@ -203,6 +213,15 @@ class FluxDevKontextPredictor(BasePredictor):
                 device=self.device,
             )
 
+            if go_fast:
+                compute_step_map = generate_compute_step_map(
+                    "go really fast", num_inference_steps
+                )
+            else:
+                compute_step_map = generate_compute_step_map(
+                    "none", num_inference_steps
+                )
+
             # Remove the original conditioning image from memory to save space
             inp.pop("img_cond_orig", None)
 
@@ -214,7 +233,7 @@ class FluxDevKontextPredictor(BasePredictor):
             )
 
             # Generate image
-            x = denoise(self.model, **inp, timesteps=timesteps, guidance=guidance)
+            x = denoise(self.model, **inp, timesteps=timesteps, guidance=guidance, compute_step_map=compute_step_map)
 
             # Decode latents to pixel space
             x = unpack(x.float(), final_height, final_width)
@@ -245,6 +264,7 @@ class FluxDevKontextPredictor(BasePredictor):
                 image.save(output_path, format="JPEG", quality=output_quality, optimize=True)
 
             # Return the output path
+            # current_scope().record_metric("image_output_count", 1)
             return Path(output_path)
 
 

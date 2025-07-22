@@ -36,9 +36,10 @@ def main():
     # Explicitly define all arguments for the predict method
 
     for i in range(len(prompts)):
+        t0 = time.time()
         predict_args = {
             "prompt": prompts[i],
-            "input_image": Path("IMG_3924.png"),
+            "input_image": Path("input_image.png"),
             "aspect_ratio": "1:1",
             "megapixels": "1",
             "num_inference_steps": 30,
@@ -52,9 +53,11 @@ def main():
         }
         
         output_path = predictor.predict(**predict_args)
+        t1 = time.time()
+        print(f"Prediction took {t1 - t0} seconds")
         renamed = f"output_{lora_keys[i]}.png"
         os.rename(output_path, renamed)
-        print(f"Prediction saved to: {renamed}")
+        print(f"Prediction saved to: {renamed} in {t1 - t0} seconds")
 
 if __name__ == "__main__":
     main() 
