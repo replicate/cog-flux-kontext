@@ -6,7 +6,7 @@ from cog import BasePredictor, Path, Input, ExperimentalFeatureWarning, current_
 import time
 import warnings
 
-from flux.sampling import denoise, get_schedule, prepare_kontext, unpack
+from flux.sampling import denoise, get_schedule, prepare_kontext, prepare, get_noise, unpack
 from flux.util import (
     configs,
     load_clip,
@@ -74,11 +74,12 @@ class FluxDevKontextPredictor(BasePredictor):
         self.model = torch.compile(self.model, dynamic=True)
         start_time = time.time()
 
+        # Warm up with text-to-image mode (no input image required)
         self.predict(
-            prompt="Make the hair blue",
-            input_image=Path("input_image.png"),
+            prompt="A beautiful landscape",
+            input_image=None,
             aspect_ratio="1:1",
-            num_inference_steps=30,
+            num_inference_steps=4,  # Reduced steps for faster warmup
             guidance=2.5,
             seed=42,
             output_format="png",
@@ -135,7 +136,8 @@ class FluxDevKontextPredictor(BasePredictor):
             description="Text description of what you want to generate, or the instruction on how to edit the given image.",
         ),
         input_image: Path = Input(
-            description="Image to use as reference. Must be jpeg, png, gif, or webp.",
+            description="Image to use as reference for image-to-image generation. Leave blank for text-to-image generation. Must be jpeg, png, gif, or webp.",
+            default=None,
         ),
         lora_weights: str = Input(
             description="Path to the lora weights",
@@ -147,7 +149,7 @@ class FluxDevKontextPredictor(BasePredictor):
         aspect_ratio: str = Input(
             description="Aspect ratio of the generated image. Use 'match_input_image' to match the aspect ratio of the input image.",
             choices=list(ASPECT_RATIOS.keys()),
-            default="1:1",
+            default="match_input_image",
         ),
         megapixels: str = Input(
             description="Approximate number of megapixels for generated image",
@@ -184,7 +186,9 @@ class FluxDevKontextPredictor(BasePredictor):
         ),
     ) -> Path:
         """
-        Generate an image based on the text prompt and conditioning image using FLUX.1 Kontext
+        Generate an image using FLUX.1 Kontext.
+        - If input_image is provided: performs image-to-image generation/editing
+        - If input_image is None: performs text-to-image generation
         """
 
         # handle loras
@@ -193,25 +197,62 @@ class FluxDevKontextPredictor(BasePredictor):
         with torch.inference_mode():
             seed = prepare_seed(seed)
 
-            # Prepare target dimensions from aspect ratio and megapixels
-            target_width, target_height = self.size_from_aspect_megapixels(
-                aspect_ratio, megapixels
-            )
-            print(f"Target dimensions: {target_width}x{target_height}")
+            if input_image is not None:
+                # Image-to-image mode using Kontext
+                print("Running in image-to-image mode")
 
-            # Prepare input for kontext sampling
-            inp, final_height, final_width = prepare_kontext(
-                t5=self.t5,
-                clip=self.clip,
-                prompt=prompt,
-                ae=self.ae,
-                img_cond_path=str(input_image),
-                target_width=target_width,
-                target_height=target_height,
-                bs=1,
-                seed=seed,
-                device=self.device,
-            )
+                # Prepare target dimensions from aspect ratio and megapixels
+                target_width, target_height = self.size_from_aspect_megapixels(
+                    aspect_ratio, megapixels
+                )
+                print(f"Target dimensions: {target_width}x{target_height}")
+
+                # Prepare input for kontext sampling
+                inp, final_height, final_width = prepare_kontext(
+                    t5=self.t5,
+                    clip=self.clip,
+                    prompt=prompt,
+                    ae=self.ae,
+                    img_cond_path=str(input_image),
+                    target_width=target_width,
+                    target_height=target_height,
+                    bs=1,
+                    seed=seed,
+                    device=self.device,
+                )
+            else:
+                # Text-to-image mode
+                print("Running in text-to-image mode")
+
+                if aspect_ratio == "match_input_image":
+                    aspect_ratio="1:1"
+
+                # Prepare target dimensions from aspect ratio and megapixels
+                target_width, target_height = self.size_from_aspect_megapixels(
+                    aspect_ratio, megapixels
+                )
+                print(f"Target dimensions: {target_width}x{target_height}")
+
+                final_width = target_width
+                final_height = target_height
+
+                # Generate noise for initial latent
+                img = get_noise(
+                    1,
+                    final_height,
+                    final_width,
+                    device=self.device,
+                    dtype=torch.bfloat16,
+                    seed=seed
+                )
+
+                # Prepare input for standard sampling
+                inp = prepare(
+                    t5=self.t5,
+                    clip=self.clip,
+                    img=img,
+                    prompt=prompt
+                )
 
             if go_fast:
                 compute_step_map = generate_compute_step_map(
@@ -222,8 +263,9 @@ class FluxDevKontextPredictor(BasePredictor):
                     "none", num_inference_steps
                 )
 
-            # Remove the original conditioning image from memory to save space
-            inp.pop("img_cond_orig", None)
+            # Remove the original conditioning image from memory to save space (only for image-to-image mode)
+            if input_image is not None:
+                inp.pop("img_cond_orig", None)
 
             # Get sampling schedule
             timesteps = get_schedule(
